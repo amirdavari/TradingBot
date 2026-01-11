@@ -1,4 +1,4 @@
-import { type TradeSignal, type ScanResult } from '../models';
+import { type TradeSignal, type ScanResult, type Candle } from '../models';
 import { API_CONFIG, fetchWithConfig } from './config';
 
 export async function getSignal(
@@ -16,5 +16,15 @@ export async function scanStocks(
 ): Promise<ScanResult[]> {
     return fetchWithConfig<ScanResult[]>(
         API_CONFIG.endpoints.scanner(symbols, timeframe)
+    );
+}
+
+export async function getCandles(
+    symbol: string,
+    timeframe?: number,
+    period?: string
+): Promise<Candle[]> {
+    return fetchWithConfig<Candle[]>(
+        API_CONFIG.endpoints.candles(symbol, timeframe, period)
     );
 }

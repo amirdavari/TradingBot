@@ -9,6 +9,17 @@ builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+// Configure CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173", "http://localhost:5174")
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 // Register HttpClient for Yahoo Finance
 builder.Services.AddHttpClient<IMarketDataProvider, YahooFinanceMarketDataProvider>();
 builder.Services.AddHttpClient<INewsProvider, YahooNewsProvider>();
@@ -24,6 +35,9 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+// Use CORS
+app.UseCors("AllowFrontend");
 
 app.UseHttpsRedirection();
 

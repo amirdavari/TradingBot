@@ -15,6 +15,16 @@ export const API_CONFIG = {
             }
             return `/api/scanner${params.toString() ? `?${params}` : ''}`;
         },
+        candles: (symbol: string, timeframe?: number, period?: string) => {
+            const params = new URLSearchParams();
+            if (timeframe) {
+                params.append('timeframe', timeframe.toString());
+            }
+            if (period) {
+                params.append('period', period);
+            }
+            return `/api/candles/${symbol}${params.toString() ? `?${params}` : ''}`;
+        },
     },
 };
 

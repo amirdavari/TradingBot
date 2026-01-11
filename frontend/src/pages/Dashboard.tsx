@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Paper from '@mui/material/Paper';
@@ -16,32 +16,27 @@ import Stack from '@mui/material/Stack';
 import SentimentSatisfiedIcon from '@mui/icons-material/SentimentSatisfied';
 import SentimentNeutralIcon from '@mui/icons-material/SentimentNeutral';
 import SentimentDissatisfiedIcon from '@mui/icons-material/SentimentDissatisfied';
+import CandlestickChart from '../charts/CandlestickChart';
+import { getCandles, getSignal } from '../api/tradingApi';
+import type { Candle, TradeSignal } from '../models';
+import LoadingSpinner from '../components/LoadingSpinner';
+import ErrorAlert from '../components/ErrorAlert';
 
 export default function Dashboard() {
-    const [timeframe, setTimeframe] = useState('5m');
-    const [selectedSymbol, setSelectedSymbol] = useState('ABC');
+    const [timeframe, setTimeframe] = useState<1 | 5 | 15>(5);
+    const [selectedSymbol, setSelectedSymbol] = useState('AAPL');
+    const [candles, setCandles] = useState<Candle[]>([]);
+    const [signal, setSignal] = useState<TradeSignal | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const watchlist = [
-        { symbol: 'ABC', status: 'bullish' },
-        { symbol: 'XYZ', status: 'neutral' },
-        { symbol: 'DEF', status: 'bearish' },
-        { symbol: 'LMN', status: 'bullish' },
-        { symbol: 'QRS', status: 'bearish' },
+        { symbol: 'AAPL', status: 'bullish' },
+        { symbol: 'MSFT', status: 'neutral' },
+        { symbol: 'GOOGL', status: 'bearish' },
+        { symbol: 'TSLA', status: 'bullish' },
+        { symbol: 'AMZN', status: 'bearish' },
     ];
-
-    const mockSignal = {
-        direction: 'LONG',
-        entry: 150.25,
-        stopLoss: 148.50,
-        takeProfit: 155.00,
-        confidence: 80,
-        reasons: [
-            'Preis über VWAP',
-            'Hohes Volumen',
-            'Positive News',
-            'Bullish Trend'
-        ]
-    };
 
     const news = [
         { headline: 'Stock hits new high on earnings beat', sentiment: 'positive' },
@@ -67,7 +62,42 @@ export default function Dashboard() {
         }
     };
 
-    const riskReward = ((mockSignal.takeProfit - mockSignal.entry) / (mockSignal.entry - mockSignal.stopLoss)).toFixed(1);
+    // Fetch data when symbol or timeframe changes
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const [candlesData, signalData] = await Promise.all([
+                    getCandles(selectedSymbol, timeframe, '1d'),
+                    getSignal(selectedSymbol, timeframe)
+                ]);
+                setCandles(candlesData);
+                setSignal(signalData);
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'Failed to fetch data');
+                console.error('Error fetching data:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [selectedSymbol, timeframe]);
+
+    const handleTimeframeChange = (_: React.MouseEvent<HTMLElement>, newTimeframe: 1 | 5 | 15 | null) => {
+        if (newTimeframe !== null) {
+            setTimeframe(newTimeframe);
+        }
+    };
+
+    const handleSymbolChange = (symbol: string) => {
+        setSelectedSymbol(symbol);
+    };
+
+    const riskReward = signal && signal.entry > 0 && signal.stopLoss > 0
+        ? ((signal.takeProfit - signal.entry) / (signal.entry - signal.stopLoss)).toFixed(1)
+        : 'N/A';
 
     return (
         <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 0, p: 0 }}>
@@ -77,17 +107,19 @@ export default function Dashboard() {
                     <TextField
                         placeholder="Search symbol..."
                         size="small"
+                        value={selectedSymbol}
+                        onChange={(e) => setSelectedSymbol(e.target.value.toUpperCase())}
                         sx={{ flexGrow: 1, maxWidth: 300 }}
                     />
                     <ToggleButtonGroup
                         value={timeframe}
                         exclusive
-                        onChange={(_, value) => value && setTimeframe(value)}
+                        onChange={handleTimeframeChange}
                         size="small"
                     >
-                        <ToggleButton value="1m">1m</ToggleButton>
-                        <ToggleButton value="5m">5m</ToggleButton>
-                        <ToggleButton value="15m">15m</ToggleButton>
+                        <ToggleButton value={1}>1m</ToggleButton>
+                        <ToggleButton value={5}>5m</ToggleButton>
+                        <ToggleButton value={15}>15m</ToggleButton>
                     </ToggleButtonGroup>
                 </Stack>
             </Paper>
@@ -106,7 +138,7 @@ export default function Dashboard() {
                                 <ListItem key={item.symbol} disablePadding>
                                     <ListItemButton
                                         selected={selectedSymbol === item.symbol}
-                                        onClick={() => setSelectedSymbol(item.symbol)}
+                                        onClick={() => handleSymbolChange(item.symbol)}
                                     >
                                         <ListItemText primary={item.symbol} />
                                         <Box
@@ -129,14 +161,24 @@ export default function Dashboard() {
                 <Grid size={7} sx={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                     <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                         <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.default', position: 'relative', minHeight: 0 }}>
-                            <Typography variant="h6" color="text.secondary">
-                                Chart Placeholder
-                            </Typography>
-                            <Chip
-                                label={mockSignal.direction}
-                                color={mockSignal.direction === 'LONG' ? 'success' : 'error'}
-                                sx={{ position: 'absolute', top: 16, right: 16 }}
-                            />
+                            {loading ? (
+                                <LoadingSpinner />
+                            ) : error ? (
+                                <ErrorAlert error={error} />
+                            ) : candles.length > 0 ? (
+                                <CandlestickChart candles={candles} signal={signal} />
+                            ) : (
+                                <Typography variant="h6" color="text.secondary">
+                                    No data available
+                                </Typography>
+                            )}
+                            {signal && signal.direction !== 'NONE' && (
+                                <Chip
+                                    label={signal.direction}
+                                    color={signal.direction === 'LONG' ? 'success' : 'error'}
+                                    sx={{ position: 'absolute', top: 16, right: 16 }}
+                                />
+                            )}
                         </Box>
 
                         {/* News Section */}
@@ -160,56 +202,62 @@ export default function Dashboard() {
                         <Typography variant="h6" gutterBottom>Trade Setup</Typography>
                         <Divider sx={{ mb: 2 }} />
 
-                        <Stack spacing={2}>
-                            <Box>
-                                <Typography variant="caption" color="text.secondary">Direction:</Typography>
-                                <ToggleButtonGroup
-                                    value={mockSignal.direction}
-                                    exclusive
-                                    fullWidth
-                                    size="small"
-                                >
-                                    <ToggleButton value="LONG">LONG</ToggleButton>
-                                    <ToggleButton value="SHORT">SHORT</ToggleButton>
-                                </ToggleButtonGroup>
-                            </Box>
+                        {signal ? (
+                            <Stack spacing={2}>
+                                <Box>
+                                    <Typography variant="caption" color="text.secondary">Direction:</Typography>
+                                    <ToggleButtonGroup
+                                        value={signal.direction}
+                                        exclusive
+                                        fullWidth
+                                        size="small"
+                                    >
+                                        <ToggleButton value="LONG">LONG</ToggleButton>
+                                        <ToggleButton value="SHORT">SHORT</ToggleButton>
+                                    </ToggleButtonGroup>
+                                </Box>
 
-                            <Box>
-                                <Typography variant="caption" color="text.secondary">Entry Price:</Typography>
-                                <Typography variant="h6">{mockSignal.entry.toFixed(2)}</Typography>
-                            </Box>
+                                <Box>
+                                    <Typography variant="caption" color="text.secondary">Entry Price:</Typography>
+                                    <Typography variant="h6">{signal.entry.toFixed(2)}</Typography>
+                                </Box>
 
-                            <Box>
-                                <Typography variant="caption" color="text.secondary">Stop Loss:</Typography>
-                                <Typography variant="h6">{mockSignal.stopLoss.toFixed(2)}</Typography>
-                            </Box>
+                                <Box>
+                                    <Typography variant="caption" color="text.secondary">Stop Loss:</Typography>
+                                    <Typography variant="h6">{signal.stopLoss.toFixed(2)}</Typography>
+                                </Box>
 
-                            <Box>
-                                <Typography variant="caption" color="text.secondary">Take Profit:</Typography>
-                                <Typography variant="h6">{mockSignal.takeProfit.toFixed(2)}</Typography>
-                            </Box>
+                                <Box>
+                                    <Typography variant="caption" color="text.secondary">Take Profit:</Typography>
+                                    <Typography variant="h6">{signal.takeProfit.toFixed(2)}</Typography>
+                                </Box>
 
-                            <Box>
-                                <Typography variant="caption" color="text.secondary">Risk/Reward:</Typography>
-                                <Typography variant="h6">{riskReward}</Typography>
-                            </Box>
+                                <Box>
+                                    <Typography variant="caption" color="text.secondary">Risk/Reward:</Typography>
+                                    <Typography variant="h6">{riskReward}</Typography>
+                                </Box>
 
-                            <Box>
-                                <Typography variant="caption" color="text.secondary">Confidence:</Typography>
-                                <Typography variant="h6">{mockSignal.confidence}%</Typography>
-                            </Box>
+                                <Box>
+                                    <Typography variant="caption" color="text.secondary">Confidence:</Typography>
+                                    <Typography variant="h6">{signal.confidence}%</Typography>
+                                </Box>
 
-                            <Box>
-                                <Typography variant="caption" color="text.secondary">Reasons:</Typography>
-                                <List dense>
-                                    {mockSignal.reasons.map((reason, index) => (
-                                        <ListItem key={index} sx={{ py: 0.5, px: 0 }}>
-                                            <Typography variant="body2">• {reason}</Typography>
-                                        </ListItem>
-                                    ))}
-                                </List>
-                            </Box>
-                        </Stack>
+                                <Box>
+                                    <Typography variant="caption" color="text.secondary">Reasons:</Typography>
+                                    <List dense>
+                                        {signal.reasons.map((reason, index) => (
+                                            <ListItem key={index} sx={{ py: 0.5, px: 0 }}>
+                                                <Typography variant="body2">• {reason}</Typography>
+                                            </ListItem>
+                                        ))}
+                                    </List>
+                                </Box>
+                            </Stack>
+                        ) : (
+                            <Typography variant="body2" color="text.secondary">
+                                No signal available
+                            </Typography>
+                        )}
                     </Paper>
                 </Grid>
             </Grid>

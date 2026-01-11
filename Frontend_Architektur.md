@@ -77,5 +77,11 @@ UI Components
   -- Stop-Loss
   -- Take-Profit
 - Keine Berechnung von Signalen im Frontend
+- TradingView Lightweight Charts
+- Native JS Integration in React (useRef + useEffect)
+- Keine React-Wrapper
+- Open Source (Apache 2.0)
+- Keine Full TradingView Library
+
 
 

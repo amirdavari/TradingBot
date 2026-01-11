@@ -147,12 +147,13 @@ Status:
 
 ## PHASE 9 – Chart & Visualisierung
 
-- [ ] TradingView Lightweight Charts integrieren
-- [ ] Candlestick Chart anzeigen
-- [ ] Timeframe Wechsel (1m / 5m / 15m)
-- [ ] Entry Linie darstellen
-- [ ] Stop-Loss Linie (rot)
-- [ ] Take-Profit Linie (grün)
+- [x] TradingView Lightweight Charts in Dashboard in dem Bereich Chart Placeholder integrieren
+- [x] Der Link findest du hier: https://github.com/tradingview/lightweight-charts
+- [x] Candlestick Chart anzeigen
+- [x] Timeframe Wechsel (1m / 5m / 15m)
+- [x] Entry Linie darstellen
+- [x] Stop-Loss Linie (rot)
+- [x] Take-Profit Linie (grün)
 
 ---
 
