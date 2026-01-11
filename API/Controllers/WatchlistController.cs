@@ -1,0 +1,113 @@
+using API.Data;
+using API.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace API.Controllers;
+
+/// <summary>
+/// API Controller for managing the user's watchlist.
+/// MVP: Single watchlist, persistent in SQLite.
+/// </summary>
+[ApiController]
+[Route("api/[controller]")]
+public class WatchlistController : ControllerBase
+{
+    private readonly ApplicationDbContext _context;
+    private readonly ILogger<WatchlistController> _logger;
+
+    public WatchlistController(ApplicationDbContext context, ILogger<WatchlistController> logger)
+    {
+        _context = context;
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Gets all symbols in the watchlist.
+    /// </summary>
+    [HttpGet]
+    [ProducesResponseType(typeof(List<WatchlistSymbol>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<WatchlistSymbol>>> GetWatchlist()
+    {
+        var symbols = await _context.WatchlistSymbols
+            .OrderBy(s => s.Symbol)
+            .ToListAsync();
+
+        return symbols;
+    }
+
+    /// <summary>
+    /// Adds a symbol to the watchlist.
+    /// </summary>
+    /// <param name="request">Symbol to add (will be uppercased)</param>
+    [HttpPost]
+    [ProducesResponseType(typeof(WatchlistSymbol), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<WatchlistSymbol>> AddSymbol([FromBody] AddSymbolRequest request)
+    {
+        // Validate symbol
+        if (string.IsNullOrWhiteSpace(request.Symbol))
+            return BadRequest("Symbol is required");
+
+        var symbol = request.Symbol.Trim().ToUpper();
+
+        // MVP validation: A-Z only, 1-6 characters
+        if (!System.Text.RegularExpressions.Regex.IsMatch(symbol, @"^[A-Z]{1,6}$"))
+            return BadRequest("Symbol must be 1-6 uppercase letters (A-Z)");
+
+        // Check if already exists
+        var exists = await _context.WatchlistSymbols
+            .AnyAsync(s => s.Symbol == symbol);
+
+        if (exists)
+            return Conflict($"Symbol '{symbol}' is already in watchlist");
+
+        // Add to watchlist
+        var watchlistSymbol = new WatchlistSymbol
+        {
+            Symbol = symbol,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _context.WatchlistSymbols.Add(watchlistSymbol);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Added symbol {Symbol} to watchlist", symbol);
+
+        return CreatedAtAction(nameof(GetWatchlist), new { id = watchlistSymbol.Id }, watchlistSymbol);
+    }
+
+    /// <summary>
+    /// Removes a symbol from the watchlist.
+    /// </summary>
+    /// <param name="symbol">Symbol to remove</param>
+    [HttpDelete("{symbol}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteSymbol(string symbol)
+    {
+        var upperSymbol = symbol.ToUpper();
+
+        var watchlistSymbol = await _context.WatchlistSymbols
+            .FirstOrDefaultAsync(s => s.Symbol == upperSymbol);
+
+        if (watchlistSymbol == null)
+            return NotFound($"Symbol '{upperSymbol}' not found in watchlist");
+
+        _context.WatchlistSymbols.Remove(watchlistSymbol);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Removed symbol {Symbol} from watchlist", upperSymbol);
+
+        return NoContent();
+    }
+}
+
+/// <summary>
+/// Request model for adding a symbol to the watchlist.
+/// </summary>
+public record AddSymbolRequest
+{
+    public required string Symbol { get; init; }
+}

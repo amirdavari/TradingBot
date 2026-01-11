@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Paper from '@mui/material/Paper';
@@ -23,8 +24,9 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorAlert from '../components/ErrorAlert';
 
 export default function Dashboard() {
+    const { symbol: urlSymbol } = useParams<{ symbol: string }>();
     const [timeframe, setTimeframe] = useState<1 | 5 | 15>(5);
-    const [selectedSymbol, setSelectedSymbol] = useState('AAPL');
+    const [selectedSymbol, setSelectedSymbol] = useState(urlSymbol || 'AAPL');
     const [candles, setCandles] = useState<Candle[]>([]);
     const [signal, setSignal] = useState<TradeSignal | null>(null);
     const [loading, setLoading] = useState(false);
@@ -61,6 +63,13 @@ export default function Dashboard() {
             default: return <SentimentNeutralIcon />;
         }
     };
+
+    // Update selected symbol when URL param changes
+    useEffect(() => {
+        if (urlSymbol) {
+            setSelectedSymbol(urlSymbol);
+        }
+    }, [urlSymbol]);
 
     // Fetch data when symbol or timeframe changes
     useEffect(() => {

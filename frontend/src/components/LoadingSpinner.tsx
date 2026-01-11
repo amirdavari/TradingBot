@@ -4,9 +4,15 @@ import Typography from '@mui/material/Typography';
 
 interface LoadingSpinnerProps {
     message?: string;
+    size?: number;
 }
 
-export default function LoadingSpinner({ message = 'Laden...' }: LoadingSpinnerProps) {
+export default function LoadingSpinner({ message = 'Laden...', size }: LoadingSpinnerProps) {
+    // Compact mode (no text) if size is specified
+    if (size) {
+        return <CircularProgress size={size} />;
+    }
+
     return (
         <Box
             sx={{

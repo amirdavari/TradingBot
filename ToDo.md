@@ -159,10 +159,19 @@ Status:
 
 ## PHASE 10 – Scanner UI
 
-- [ ] Scanner Liste anzeigen
-- [ ] Sortierung nach Score
-- [ ] Klick auf Aktie → Chart + Signal laden
-- [ ] Confidence visuell anzeigen
+- [x] Backend: Watchlist Entity + DbContext (SQLite)
+- [x] Backend: Watchlist Controller (GET/POST/DELETE)
+- [x] Backend: Scanner DTO erweitert (Trend, VolumeStatus, Confidence, Reasons)
+- [x] Frontend: Watchlist API Client
+- [x] Frontend: Scanner API Client erweitern
+- [x] Frontend: useWatchlist Hook
+- [x] Frontend: useScanner Hook
+- [x] Frontend: Badge Components (Score, Trend, Volume, etc.)
+- [x] Frontend: WatchlistAddForm Component
+- [x] Frontend: ScannerTable Component  
+- [x] Frontend: ScannerPage erstellen
+- [x] Frontend: Navigation/Routing zur ScannerPage
+- [x] Frontend: Dashboard unterstützt URL-Parameter (/symbol/:symbol)
 
 ---
 

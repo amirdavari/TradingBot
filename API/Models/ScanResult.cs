@@ -11,37 +11,32 @@ public class ScanResult
     public string Symbol { get; set; } = string.Empty;
 
     /// <summary>
-    /// Current price.
-    /// </summary>
-    public decimal CurrentPrice { get; set; }
-
-    /// <summary>
     /// Overall score (0-100) indicating daytrading suitability.
     /// </summary>
     public int Score { get; set; }
 
     /// <summary>
-    /// Volume ratio compared to average (e.g., 1.5 = 150% of average).
+    /// Trend direction based on signal.
     /// </summary>
-    public double VolumeRatio { get; set; }
+    public string Trend { get; set; } = "NONE"; // LONG | SHORT | NONE
 
     /// <summary>
-    /// Volatility percentage (ATR as % of price).
+    /// Volume status categorization.
     /// </summary>
-    public decimal Volatility { get; set; }
+    public string VolumeStatus { get; set; } = "LOW"; // LOW | MEDIUM | HIGH
 
     /// <summary>
-    /// Distance to VWAP as percentage.
-    /// </summary>
-    public decimal DistanceToVWAP { get; set; }
-
-    /// <summary>
-    /// Indicates if relevant news exists for this symbol.
+    /// Indicates if relevant news are available for this symbol.
     /// </summary>
     public bool HasNews { get; set; }
 
     /// <summary>
-    /// List of reasons explaining the score.
+    /// Confidence score from signal (0.0 to 1.0).
+    /// </summary>
+    public double Confidence { get; set; }
+
+    /// <summary>
+    /// List of reasons why this stock was scored this way (max 3 for MVP).
     /// </summary>
     public List<string> Reasons { get; set; } = new();
 }

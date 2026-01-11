@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
@@ -12,7 +13,6 @@ import ListItemText from '@mui/material/ListItemText';
 import Divider from '@mui/material/Divider';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import SearchIcon from '@mui/icons-material/Search';
-import ShowChartIcon from '@mui/icons-material/ShowChart';
 
 const drawerWidth = 240;
 
@@ -21,6 +21,14 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    const menuItems = [
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
+        { text: 'Scanner', icon: <SearchIcon />, path: '/scanner' },
+    ];
+
     const drawer = (
         <Box>
             <Toolbar>
@@ -30,30 +38,19 @@ export default function Layout({ children }: LayoutProps) {
             </Toolbar>
             <Divider />
             <List>
-                <ListItem disablePadding>
-                    <ListItemButton>
-                        <ListItemIcon>
-                            <DashboardIcon />
-                        </ListItemIcon>
-                        <ListItemText primary="Dashboard" />
-                    </ListItemButton>
-                </ListItem>
-                <ListItem disablePadding>
-                    <ListItemButton>
-                        <ListItemIcon>
-                            <SearchIcon />
-                        </ListItemIcon>
-                        <ListItemText primary="Scanner" />
-                    </ListItemButton>
-                </ListItem>
-                <ListItem disablePadding>
-                    <ListItemButton>
-                        <ListItemIcon>
-                            <ShowChartIcon />
-                        </ListItemIcon>
-                        <ListItemText primary="Signals" />
-                    </ListItemButton>
-                </ListItem>
+                {menuItems.map((item) => (
+                    <ListItem key={item.text} disablePadding>
+                        <ListItemButton
+                            selected={location.pathname === item.path}
+                            onClick={() => navigate(item.path)}
+                        >
+                            <ListItemIcon>
+                                {item.icon}
+                            </ListItemIcon>
+                            <ListItemText primary={item.text} />
+                        </ListItemButton>
+                    </ListItem>
+                ))}
             </List>
         </Box>
     );

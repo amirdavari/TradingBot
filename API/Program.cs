@@ -1,5 +1,6 @@
 using API.Data;
 using API.Services;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +21,10 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Configure Database (SQLite for MVP)
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlite("Data Source=aibroker.db"));
+
 // Register HttpClient for Yahoo Finance
 builder.Services.AddHttpClient<IMarketDataProvider, YahooFinanceMarketDataProvider>();
 builder.Services.AddHttpClient<INewsProvider, YahooNewsProvider>();
@@ -29,6 +34,13 @@ builder.Services.AddScoped<SignalService>();
 builder.Services.AddScoped<ScannerService>();
 
 var app = builder.Build();
+
+// Ensure database is created (MVP: auto-migration)
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    db.Database.EnsureCreated();
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

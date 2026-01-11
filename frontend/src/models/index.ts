@@ -28,5 +28,15 @@ export interface NewsItem {
 export interface ScanResult {
     symbol: string;
     score: number;
+    trend: 'LONG' | 'SHORT' | 'NONE';
+    volumeStatus: 'LOW' | 'MEDIUM' | 'HIGH';
+    hasNews: boolean;
+    confidence: number;
     reasons: string[];
+}
+
+export interface WatchlistSymbol {
+    id: number;
+    symbol: string;
+    createdAt: string;
 }
