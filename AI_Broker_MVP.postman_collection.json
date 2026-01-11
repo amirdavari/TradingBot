@@ -1,0 +1,278 @@
+{
+    "info": {
+        "_postman_id": "ai-broker-mvp-collection",
+        "name": "AI Broker MVP API",
+        "description": "Postman collection for testing AI Broker MVP endpoints",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Signals",
+            "item": [
+                {
+                    "name": "Get Signal - AAPL (default params)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/signals/AAPL",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "signals",
+                                "AAPL"
+                            ]
+                        },
+                        "description": "Get trading signal for AAPL with default parameters (5m timeframe, 1d period)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Signal - TSLA (1m timeframe)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/signals/TSLA?timeframe=1&period=1d",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "signals",
+                                "TSLA"
+                            ],
+                            "query": [
+                                {
+                                    "key": "timeframe",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "period",
+                                    "value": "1d"
+                                }
+                            ]
+                        },
+                        "description": "Get trading signal for TSLA with 1-minute timeframe"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Signal - MSFT (15m timeframe, 5d period)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/signals/MSFT?timeframe=15&period=5d",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "signals",
+                                "MSFT"
+                            ],
+                            "query": [
+                                {
+                                    "key": "timeframe",
+                                    "value": "15"
+                                },
+                                {
+                                    "key": "period",
+                                    "value": "5d"
+                                }
+                            ]
+                        },
+                        "description": "Get trading signal for MSFT with 15-minute timeframe and 5-day period"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Signal - Invalid Symbol (404)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/signals/INVALID123",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "signals",
+                                "INVALID123"
+                            ]
+                        },
+                        "description": "Test error handling with invalid symbol (should return 404)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Signal - Invalid Timeframe (400)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/signals/AAPL?timeframe=10",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "signals",
+                                "AAPL"
+                            ],
+                            "query": [
+                                {
+                                    "key": "timeframe",
+                                    "value": "10"
+                                }
+                            ]
+                        },
+                        "description": "Test validation with invalid timeframe (should return 400)"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Trading signal endpoints"
+        },
+        {
+            "name": "Scanner",
+            "item": [
+                {
+                    "name": "Scan Default Symbols",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/scanner",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "scanner"
+                            ]
+                        },
+                        "description": "Scan default watchlist (AAPL, MSFT, GOOGL, AMZN, TSLA, META, NVDA, AMD, NFLX, SPY)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Scan Default Symbols (5m timeframe)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/scanner?timeframe=5",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "scanner"
+                            ],
+                            "query": [
+                                {
+                                    "key": "timeframe",
+                                    "value": "5"
+                                }
+                            ]
+                        },
+                        "description": "Scan with 5-minute timeframe"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Scan Custom Symbols",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/scanner?symbols=AAPL,TSLA,NVDA",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "scanner"
+                            ],
+                            "query": [
+                                {
+                                    "key": "symbols",
+                                    "value": "AAPL,TSLA,NVDA"
+                                }
+                            ]
+                        },
+                        "description": "Scan specific symbols (AAPL, TSLA, NVDA)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Scan Custom Symbols (15m timeframe)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/scanner?symbols=MSFT,GOOGL,META&timeframe=15",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "scanner"
+                            ],
+                            "query": [
+                                {
+                                    "key": "symbols",
+                                    "value": "MSFT,GOOGL,META"
+                                },
+                                {
+                                    "key": "timeframe",
+                                    "value": "15"
+                                }
+                            ]
+                        },
+                        "description": "Scan custom symbols with 15-minute timeframe"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Scan - Invalid Timeframe (400)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/scanner?timeframe=30",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "scanner"
+                            ],
+                            "query": [
+                                {
+                                    "key": "timeframe",
+                                    "value": "30"
+                                }
+                            ]
+                        },
+                        "description": "Test validation with invalid timeframe (should return 400)"
+                    },
+                    "response": []
+                }
+            ],
+            "description": "Stock scanner endpoints"
+        }
+    ],
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "https://localhost:7001",
+            "type": "string"
+        }
+    ]
+}
