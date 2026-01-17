@@ -25,9 +25,41 @@ builder.Services.AddCors(options =>
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite("Data Source=aibroker.db"));
 
-// Register HttpClient for Yahoo Finance
-builder.Services.AddHttpClient<IMarketDataProvider, YahooFinanceMarketDataProvider>();
+// Register Yahoo Finance Provider with HttpClient
+builder.Services.AddHttpClient<YahooFinanceMarketDataProvider>();
 builder.Services.AddHttpClient<INewsProvider, YahooNewsProvider>();
+
+// Register Market Time Provider (Singleton for replay state)
+builder.Services.AddSingleton<IMarketTimeProvider, MarketTimeProvider>();
+
+// Register Market Data Provider based on mode
+// In Replay mode, YahooReplayMarketDataProvider wraps YahooFinanceMarketDataProvider
+builder.Services.AddScoped<IMarketDataProvider>(sp =>
+{
+    var timeProvider = sp.GetRequiredService<IMarketTimeProvider>();
+    var mode = timeProvider.GetMode();
+    
+    if (mode == API.Models.MarketMode.Replay)
+    {
+        var yahooProvider = sp.GetRequiredService<YahooFinanceMarketDataProvider>();
+        var logger = sp.GetRequiredService<ILogger<YahooReplayMarketDataProvider>>();
+        return new YahooReplayMarketDataProvider(yahooProvider, timeProvider, logger);
+    }
+    else
+    {
+        return sp.GetRequiredService<YahooFinanceMarketDataProvider>();
+    }
+});
+
+builder.Services.AddSingleton<MarketTimeProvider>(sp => 
+    (MarketTimeProvider)sp.GetRequiredService<IMarketTimeProvider>());
+
+// Register Replay Clock Service (Background Service)
+builder.Services.AddHostedService<ReplayClockService>();
+builder.Services.AddSingleton<ReplayClockService>(sp =>
+    sp.GetServices<IHostedService>()
+        .OfType<ReplayClockService>()
+        .First());
 
 // Register Business Services
 builder.Services.AddScoped<SignalService>();

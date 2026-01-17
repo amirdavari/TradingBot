@@ -13,6 +13,8 @@ import ListItemText from '@mui/material/ListItemText';
 import Divider from '@mui/material/Divider';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import SearchIcon from '@mui/icons-material/Search';
+import SettingsIcon from '@mui/icons-material/Settings';
+import SimulationIndicator from './SimulationIndicator';
 
 const drawerWidth = 240;
 
@@ -27,6 +29,7 @@ export default function Layout({ children }: LayoutProps) {
     const menuItems = [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
         { text: 'Scanner', icon: <SearchIcon />, path: '/scanner' },
+        { text: 'Simulation', icon: <SettingsIcon />, path: '/simulation' },
     ];
 
     const drawer = (
@@ -89,6 +92,7 @@ export default function Layout({ children }: LayoutProps) {
                         <Typography variant="h6" noWrap component="div">
                             Trading Dashboard
                         </Typography>
+                        <SimulationIndicator />
                     </Toolbar>
                 </AppBar>
                 <Box

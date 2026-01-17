@@ -51,10 +51,14 @@ export function useScanner(symbols: string[], enabled: boolean = true) {
         setLoading(true);
         setError(null);
         try {
+            console.log('Manual reload: Scanning symbols:', symbols);
             const results = await scanStocks(symbols, 1);
+            console.log('Manual reload: Scan results:', results);
             setScanResults(results);
         } catch (err) {
+            console.error('Manual reload: Scan error:', err);
             setError(err instanceof Error ? err.message : 'Failed to scan stocks');
+            setScanResults([]);
         } finally {
             setLoading(false);
         }

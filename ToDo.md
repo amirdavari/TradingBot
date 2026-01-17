@@ -204,12 +204,12 @@ Business-Logik darf nicht zwischen Live und Replay unterscheiden.
 
 ### Backend – Modus & Zeitquelle (Pflicht)
 
-- [ ] Enum `MarketMode` definieren
+- [x] Enum `MarketMode` definieren
       - Werte: Live, Replay
-- [ ] Globale Markt-Zeitquelle festlegen
+- [x] Globale Markt-Zeitquelle festlegen
       - Live: DateTime.UtcNow
       - Replay: ReplayState.CurrentTime
-- [ ] Sicherstellen:
+- [x] Sicherstellen:
       - KEIN direkter Zugriff auf DateTime.Now in Services
       - Zeit wird immer über eine abstrahierte Zeitquelle bezogen
 
@@ -217,60 +217,60 @@ Business-Logik darf nicht zwischen Live und Replay unterscheiden.
 
 ### Backend – ReplayState (Single Source of Truth)
 
-- [ ] Modell `ReplayState` erstellen mit:
+- [x] Modell `ReplayState` erstellen mit:
       - ReplayStartTime (DateTime)
       - CurrentTime (DateTime)  ← einzige gültige Zeit im Replay
       - Speed (double)          ← 1x, 5x, 10x
       - IsRunning (bool)
-- [ ] ReplayState zentral im Backend halten (Singleton/Scoped Service)
+- [x] ReplayState zentral im Backend halten (Singleton/Scoped Service)
 
 ================================================================
 
 ### Backend – ReplayClockService (Zeitsteuerung)
 
-- [ ] Service `ReplayClockService` erstellen
-- [ ] Methoden implementieren:
+- [x] Service `ReplayClockService` erstellen
+- [x] Methoden implementieren:
       - Start()
       - Pause()
       - Reset()
       - SetSpeed(double speed)
-- [ ] Interner Tick (z. B. 1 Sekunde):
+- [x] Interner Tick (z. B. 1 Sekunde):
       - CurrentTime += Tick * Speed
-- [ ] Service darf NUR ReplayState verändern
-- [ ] Keine Marktdaten- oder Business-Logik im ClockService
+- [x] Service darf NUR ReplayState verändern
+- [x] Keine Marktdaten- oder Business-Logik im ClockService
 
 ================================================================
 
 ### Backend – Market Data Provider (Replay)
 
-- [ ] `IMarketDataProvider` bleibt unverändert
-- [ ] `YahooReplayMarketDataProvider` implementieren
+- [x] `IMarketDataProvider` bleibt unverändert
+- [x] `YahooReplayMarketDataProvider` implementieren
       - Lädt historische Yahoo-Finance-Daten
       - Filtert Candles strikt:
             Candle.Time <= ReplayState.CurrentTime
       - Gibt identisches Datenformat wie Live-Provider zurück
-- [ ] Business-Services (Scanner, Signals) dürfen:
+- [x] Business-Services (Scanner, Signals) dürfen:
       - NICHT wissen, ob Live oder Replay aktiv ist
 
 ================================================================
 
 ### Backend – Replay API (nur Dev / Simulation)
 
-- [ ] GET  /api/replay/state
+- [x] GET  /api/replay/state
       - Liefert aktuellen ReplayState
-- [ ] POST /api/replay/start
-- [ ] POST /api/replay/pause
-- [ ] POST /api/replay/reset
-- [ ] POST /api/replay/speed
+- [x] POST /api/replay/start
+- [x] POST /api/replay/pause
+- [x] POST /api/replay/reset
+- [x] POST /api/replay/speed
       - Body: { speed: number }
 
 ================================================================
 
 ### Frontend – Simulation State (Pflicht)
 
-- [ ] Frontend hält KEINE eigene Zeit
-- [ ] ReplayState ausschließlich vom Backend laden
-- [ ] Typ `ReplayState` im Frontend definieren:
+- [x] Frontend hält KEINE eigene Zeit
+- [x] ReplayState ausschließlich vom Backend laden
+- [x] Typ `ReplayState` im Frontend definieren:
       - mode: "LIVE" | "REPLAY"
       - currentTime: string
       - speed: number
@@ -280,10 +280,10 @@ Business-Logik darf nicht zwischen Live und Replay unterscheiden.
 
 ### Frontend – Simulation Indicator (immer sichtbar)
 
-- [ ] Globaler Header-Indikator implementieren
+- [x] Globaler Header-Indikator implementieren
       - LIVE → grün
       - SIMULATION → gelb
-- [ ] Anzeige:
+- [x] Anzeige:
       - Simulationsdatum
       - aktuelle Replay-Zeit
       - Speed (z. B. 5x)
@@ -292,33 +292,33 @@ Business-Logik darf nicht zwischen Live und Replay unterscheiden.
 
 ### Frontend – Simulation Control Panel (Dev-only)
 
-- [ ] Toggle: Live ↔ Simulation
-- [ ] Replay-Datum auswählen
-- [ ] Speed Buttons: 1x / 5x / 10x
-- [ ] Controls:
+- [x] Toggle: Live ↔ Simulation
+- [x] Replay-Datum auswählen
+- [x] Speed Buttons: 1x / 5x / 10x
+- [x] Controls:
       - Start
       - Pause
       - Reset
-- [ ] Controls rufen ausschließlich Replay API auf
+- [x] Controls rufen ausschließlich Replay API auf
 
 ================================================================
 
 ### Frontend – Verhalten in Simulation
 
-- [ ] Scanner aktualisiert sich anhand Replay-Zeit
-- [ ] Charts wachsen Candle-für-Candle
-- [ ] Signale erscheinen zeitabhängig
+- [x] Scanner aktualisiert sich anhand Replay-Zeit
+- [x] Charts wachsen Candle-für-Candle
+- [x] Signale erscheinen zeitabhängig
 - [ ] Paper-Trading öffnet/schließt Trades anhand Replay-Zeit
 
 ================================================================
 
 ### Verbindliche Regeln (Copilot-relevant)
 
-- [ ] KEINE Zeitberechnung im Frontend
-- [ ] KEINE Business-Logik im Frontend
-- [ ] KEINE Realtime-Streams / WebSockets
-- [ ] Simulation darf Live-Code NICHT verändern
-- [ ] Simulation muss visuell klar erkennbar sein
+- [x] KEINE Zeitberechnung im Frontend
+- [x] KEINE Business-Logik im Frontend
+- [x] KEINE Realtime-Streams / WebSockets
+- [x] Simulation darf Live-Code NICHT verändern
+- [x] Simulation muss visuell klar erkennbar sein
 
 
 ## PHASE 11 – Paper-Trading (Pflicht)

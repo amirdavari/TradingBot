@@ -16,15 +16,18 @@ public class WatchlistController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly SymbolValidationService _validationService;
+    private readonly IMarketTimeProvider _timeProvider;
     private readonly ILogger<WatchlistController> _logger;
 
     public WatchlistController(
         ApplicationDbContext context, 
         SymbolValidationService validationService,
+        IMarketTimeProvider timeProvider,
         ILogger<WatchlistController> logger)
     {
         _context = context;
         _validationService = validationService;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -81,7 +84,7 @@ public class WatchlistController : ControllerBase
         var watchlistSymbol = new WatchlistSymbol
         {
             Symbol = symbol,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = _timeProvider.GetCurrentTime()
         };
 
         _context.WatchlistSymbols.Add(watchlistSymbol);

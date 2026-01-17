@@ -40,3 +40,11 @@ export interface WatchlistSymbol {
     symbol: string;
     createdAt: string;
 }
+
+export interface ReplayState {
+    mode: 'LIVE' | 'REPLAY';
+    currentTime: string;
+    replayStartTime: string;
+    speed: number;
+    isRunning: boolean;
+}

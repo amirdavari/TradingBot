@@ -19,12 +19,20 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorAlert from '../components/ErrorAlert';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useScanner } from '../hooks/useScanner';
+import { useReplayRefresh } from '../hooks/useReplayRefresh';
 
 export default function ScannerPage() {
     const navigate = useNavigate();
-    const { watchlist, loading: watchlistLoading, error: watchlistError, addSymbol, deleteSymbol } = useWatchlist();
+    const { watchlist, loading: watchlistLoading, addSymbol, deleteSymbol } = useWatchlist();
     const symbols = watchlist.map(w => w.symbol);
-    const { scanResults, loading: scanLoading, error: scanError } = useScanner(symbols, symbols.length > 0);
+    const { scanResults, loading: scanLoading, error: scanError, reload } = useScanner(symbols, symbols.length > 0);
+
+    // Auto-refresh scanner during replay simulation (every 10 seconds)
+    useReplayRefresh(() => {
+        if (symbols.length > 0) {
+            reload();
+        }
+    }, 10000);
 
     const [filterMinScore, setFilterMinScore] = useState(false);
 

@@ -23,6 +23,7 @@ import type { Candle, TradeSignal, NewsItem } from '../models';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorAlert from '../components/ErrorAlert';
 import { useWatchlist } from '../hooks/useWatchlist';
+import { useReplayRefresh } from '../hooks/useReplayRefresh';
 
 export default function Dashboard() {
     const { symbol: urlSymbol } = useParams<{ symbol: string }>();
@@ -36,6 +37,25 @@ export default function Dashboard() {
     const [error, setError] = useState<string | null>(null);
 
     const { watchlist, loading: watchlistLoading } = useWatchlist();
+
+    // Refresh data automatically when replay is running
+    const refreshData = async () => {
+        if (!loading) { // Don't refresh if already loading
+            try {
+                const [candlesData, signalData] = await Promise.all([
+                    getCandles(selectedSymbol, timeframe, '1d'),
+                    getSignal(selectedSymbol, timeframe)
+                ]);
+                setCandles(candlesData);
+                setSignal(signalData);
+            } catch (err) {
+                console.error('Error refreshing data in replay:', err);
+            }
+        }
+    };
+
+    // Auto-refresh during replay simulation (every 5 seconds)
+    useReplayRefresh(refreshData, 5000);
 
     const getSentimentIcon = (sentiment: string) => {
         switch (sentiment) {

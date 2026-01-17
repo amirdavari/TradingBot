@@ -32,6 +32,15 @@ export const API_CONFIG = {
             }
             return `/api/news/${symbol}${params.toString() ? `?${params}` : ''}`;
         },
+        replay: {
+            state: '/api/replay/state',
+            start: '/api/replay/start',
+            pause: '/api/replay/pause',
+            reset: '/api/replay/reset',
+            speed: '/api/replay/speed',
+            time: '/api/replay/time',
+            mode: '/api/replay/mode',
+        },
     },
 };
 

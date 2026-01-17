@@ -66,7 +66,16 @@ public class ScannerService
         {
             _logger.LogDebug("Scanning symbol: {Symbol} with timeframe {Timeframe}", symbol, timeframe);
             
-            var candles = await _marketDataProvider.GetCandlesAsync(symbol, timeframe, "1d");
+            // Use longer period to ensure enough data even in replay mode
+            var period = timeframe switch
+            {
+                1 => "5d",  // 1-minute candles: need more days
+                5 => "2d",  // 5-minute candles: 2 days should be enough
+                15 => "1d", // 15-minute candles: 1 day is sufficient
+                _ => "1d"
+            };
+            
+            var candles = await _marketDataProvider.GetCandlesAsync(symbol, timeframe, period);
 
             _logger.LogDebug("Retrieved {Count} candles for {Symbol}", candles.Count, symbol);
 
