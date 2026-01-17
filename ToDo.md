@@ -199,6 +199,7 @@ Die Anwendung muss unabhängig von Börsenzeiten vollständig nutzbar sein.
 Simulation ist ein gleichwertiger Betriebsmodus neben Live.
 Business-Logik darf nicht zwischen Live und Replay unterscheiden.
 
+
 ================================================================
 
 ### Backend – Modus & Zeitquelle (Pflicht)
