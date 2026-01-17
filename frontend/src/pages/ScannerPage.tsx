@@ -61,8 +61,7 @@ export default function ScannerPage() {
             {/* Add Symbol Form */}
             <WatchlistAddForm onAdd={addSymbol} />
 
-            {/* Errors */}
-            {watchlistError && <ErrorAlert error={watchlistError} />}
+            {/* Scan Errors */}
             {scanError && <ErrorAlert error={scanError} />}
 
             {/* Filter */}

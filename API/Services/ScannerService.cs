@@ -40,30 +40,43 @@ public class ScannerService
         var scanResults = await Task.WhenAll(scanTasks);
 
         // Filter out null results (errors) and sort by score
+        var nullCount = scanResults.Count(r => r == null);
+        if (nullCount > 0)
+        {
+            _logger.LogWarning("{NullCount} symbols returned null results and were filtered out", nullCount);
+        }
+        
         results = scanResults
             .Where(r => r != null)
             .OrderByDescending(r => r!.Score)
             .ToList()!;
 
-        _logger.LogInformation("Scan completed. Found {Count} candidates", results.Count);
+        _logger.LogInformation("Scan completed. Found {Count} candidates out of {Total} symbols", results.Count, symbols.Length);
 
         return results;
     }
 
     /// <summary>
     /// Scans a single symbol and calculates its daytrading score.
+    /// Public for testing purposes.
     /// </summary>
-    private async Task<ScanResult?> ScanSymbolAsync(string symbol, int timeframe)
+    public async Task<ScanResult?> ScanSymbolAsync(string symbol, int timeframe)
     {
         try
         {
+            _logger.LogDebug("Scanning symbol: {Symbol} with timeframe {Timeframe}", symbol, timeframe);
+            
             var candles = await _marketDataProvider.GetCandlesAsync(symbol, timeframe, "1d");
 
-            if (candles.Count < 20)
+            _logger.LogDebug("Retrieved {Count} candles for {Symbol}", candles.Count, symbol);
+
+            if (candles.Count < 10)
             {
-                _logger.LogWarning("Insufficient data for {Symbol}", symbol);
+                _logger.LogWarning("Insufficient data for {Symbol}. Got {Count} candles, need at least 10", symbol, candles.Count);
                 return null;
             }
+
+            _logger.LogDebug("Successfully retrieved {Count} candles for {Symbol}", candles.Count, symbol);
 
             var currentCandle = candles.Last();
             var currentPrice = currentCandle.Close;
@@ -99,6 +112,9 @@ public class ScannerService
             // Generate reasons
             var reasons = GenerateReasons(volumeRatio, (double)volatility, (double)Math.Abs(distanceToVWAP));
 
+            _logger.LogInformation("Successfully scanned {Symbol}: Score={Score}, Trend={Trend}, VolumeStatus={VolumeStatus}", 
+                symbol, score, trend, volumeStatus);
+
             return new ScanResult
             {
                 Symbol = symbol,
@@ -112,7 +128,7 @@ public class ScannerService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error scanning symbol {Symbol}", symbol);
+            _logger.LogError(ex, "Error scanning symbol {Symbol}. Exception: {Message}", symbol, ex.Message);
             return null;
         }
     }

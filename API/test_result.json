@@ -1,0 +1,9 @@
+
+symbol       : AAPL
+score        : 20
+trend        : NONE
+volumeStatus : LOW
+hasNews      : False
+confidence   : 0
+reasons      : {Volume only 0,0x average, Low volatility (0,1%)}
+

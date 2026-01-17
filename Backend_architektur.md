@@ -207,3 +207,6 @@ Im MVP NICHT erlaubt:
   -- keine Logik in Controller schreiben
   -- keine Features außerhalb des MVP-Scope erzeugen
   -- sich an PROJECT_OVERVIEW.md halten
+
+## 6. Pfade und Ordner
+ Backend Pfad: API/

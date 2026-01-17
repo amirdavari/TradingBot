@@ -20,11 +20,7 @@ export default function WatchlistAddForm({ onAdd }: WatchlistAddFormProps) {
         const trimmedSymbol = symbol.trim().toUpperCase();
         if (!trimmedSymbol) return;
 
-        // MVP validation: A-Z only, 1-6 characters
-        if (!/^[A-Z]{1,6}$/.test(trimmedSymbol)) {
-            setError('Symbol must be 1-6 uppercase letters (A-Z)');
-            return;
-        }
+
 
         setLoading(true);
         setError(null);

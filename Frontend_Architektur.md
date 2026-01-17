@@ -83,5 +83,5 @@ UI Components
 - Open Source (Apache 2.0)
 - Keine Full TradingView Library
 
-
-
+## 7. Pfade und Ordner
+ Frontend Pfad: frontend/

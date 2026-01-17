@@ -1,6 +1,32 @@
-@API_HostAddress = http://localhost:5049
+@API_HostAddress = http://localhost:7002
 
 GET {{API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
+
+# Test Watchlist - Add Valid Symbol
+POST {{API_HostAddress}}/api/watchlist
+Content-Type: application/json
+
+{
+  "symbol": "AAPL"
+}
+
+###
+
+# Test Watchlist - Add Invalid Symbol
+POST {{API_HostAddress}}/api/watchlist
+Content-Type: application/json
+
+{
+  "symbol": "INVALID123"
+}
+
+###
+
+# Test Watchlist - Get All
+GET {{API_HostAddress}}/api/watchlist
 Accept: application/json
 
 ###

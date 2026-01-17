@@ -1,5 +1,6 @@
 using API.Data;
 using API.Models;
+using API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,11 +15,16 @@ namespace API.Controllers;
 public class WatchlistController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly SymbolValidationService _validationService;
     private readonly ILogger<WatchlistController> _logger;
 
-    public WatchlistController(ApplicationDbContext context, ILogger<WatchlistController> logger)
+    public WatchlistController(
+        ApplicationDbContext context, 
+        SymbolValidationService validationService,
+        ILogger<WatchlistController> logger)
     {
         _context = context;
+        _validationService = validationService;
         _logger = logger;
     }
 
@@ -53,7 +59,7 @@ public class WatchlistController : ControllerBase
         var symbol = request.Symbol.Trim().ToUpper();
 
         // MVP validation: A-Z only, 1-6 characters
-        if (!System.Text.RegularExpressions.Regex.IsMatch(symbol, @"^[A-Z]{1,6}$"))
+        if (!_validationService.IsValidFormat(symbol))
             return BadRequest("Symbol must be 1-6 uppercase letters (A-Z)");
 
         // Check if already exists
@@ -62,6 +68,14 @@ public class WatchlistController : ControllerBase
 
         if (exists)
             return Conflict($"Symbol '{symbol}' is already in watchlist");
+
+        // Validate that the symbol exists in market data
+        var isValidSymbol = await _validationService.IsValidSymbolAsync(symbol);
+        if (!isValidSymbol)
+        {
+            _logger.LogWarning("Attempted to add invalid symbol: {Symbol}", symbol);
+            return BadRequest($"Symbol '{symbol}' is not valid or has no available data. Please check the symbol and try again.");
+        }
 
         // Add to watchlist
         var watchlistSymbol = new WatchlistSymbol

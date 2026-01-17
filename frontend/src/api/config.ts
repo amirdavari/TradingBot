@@ -25,6 +25,13 @@ export const API_CONFIG = {
             }
             return `/api/candles/${symbol}${params.toString() ? `?${params}` : ''}`;
         },
+        news: (symbol: string, count?: number) => {
+            const params = new URLSearchParams();
+            if (count) {
+                params.append('count', count.toString());
+            }
+            return `/api/news/${symbol}${params.toString() ? `?${params}` : ''}`;
+        },
     },
 };
 

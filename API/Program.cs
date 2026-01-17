@@ -32,6 +32,7 @@ builder.Services.AddHttpClient<INewsProvider, YahooNewsProvider>();
 // Register Business Services
 builder.Services.AddScoped<SignalService>();
 builder.Services.AddScoped<ScannerService>();
+builder.Services.AddScoped<SymbolValidationService>();
 
 var app = builder.Build();
 

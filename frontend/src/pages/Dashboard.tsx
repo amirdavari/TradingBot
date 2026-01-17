@@ -18,10 +18,11 @@ import SentimentSatisfiedIcon from '@mui/icons-material/SentimentSatisfied';
 import SentimentNeutralIcon from '@mui/icons-material/SentimentNeutral';
 import SentimentDissatisfiedIcon from '@mui/icons-material/SentimentDissatisfied';
 import CandlestickChart from '../charts/CandlestickChart';
-import { getCandles, getSignal } from '../api/tradingApi';
-import type { Candle, TradeSignal } from '../models';
+import { getCandles, getSignal, getNews } from '../api/tradingApi';
+import type { Candle, TradeSignal, NewsItem } from '../models';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorAlert from '../components/ErrorAlert';
+import { useWatchlist } from '../hooks/useWatchlist';
 
 export default function Dashboard() {
     const { symbol: urlSymbol } = useParams<{ symbol: string }>();
@@ -29,31 +30,12 @@ export default function Dashboard() {
     const [selectedSymbol, setSelectedSymbol] = useState(urlSymbol || 'AAPL');
     const [candles, setCandles] = useState<Candle[]>([]);
     const [signal, setSignal] = useState<TradeSignal | null>(null);
+    const [news, setNews] = useState<NewsItem[]>([]);
     const [loading, setLoading] = useState(false);
+    const [newsLoading, setNewsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const watchlist = [
-        { symbol: 'AAPL', status: 'bullish' },
-        { symbol: 'MSFT', status: 'neutral' },
-        { symbol: 'GOOGL', status: 'bearish' },
-        { symbol: 'TSLA', status: 'bullish' },
-        { symbol: 'AMZN', status: 'bearish' },
-    ];
-
-    const news = [
-        { headline: 'Stock hits new high on earnings beat', sentiment: 'positive' },
-        { headline: 'Market consolidation continues', sentiment: 'neutral' },
-        { headline: 'Concerns over supply chain issues', sentiment: 'negative' },
-    ];
-
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'bullish': return 'success';
-            case 'neutral': return 'warning';
-            case 'bearish': return 'error';
-            default: return 'default';
-        }
-    };
+    const { watchlist, loading: watchlistLoading } = useWatchlist();
 
     const getSentimentIcon = (sentiment: string) => {
         switch (sentiment) {
@@ -93,6 +75,25 @@ export default function Dashboard() {
 
         fetchData();
     }, [selectedSymbol, timeframe]);
+
+    // Fetch news when symbol changes
+    useEffect(() => {
+        const fetchNewsData = async () => {
+            setNewsLoading(true);
+            try {
+                const newsData = await getNews(selectedSymbol, 5);
+                setNews(newsData);
+            } catch (err) {
+                console.error('Error fetching news:', err);
+                // Don't set main error for news failures
+                setNews([]);
+            } finally {
+                setNewsLoading(false);
+            }
+        };
+
+        fetchNewsData();
+    }, [selectedSymbol]);
 
     const handleTimeframeChange = (_: React.MouseEvent<HTMLElement>, newTimeframe: 1 | 5 | 15 | null) => {
         if (newTimeframe !== null) {
@@ -142,27 +143,24 @@ export default function Dashboard() {
                             <Typography variant="h6">Watchlist</Typography>
                         </Box>
                         <Divider />
-                        <List dense>
-                            {watchlist.map((item) => (
-                                <ListItem key={item.symbol} disablePadding>
-                                    <ListItemButton
-                                        selected={selectedSymbol === item.symbol}
-                                        onClick={() => handleSymbolChange(item.symbol)}
-                                    >
-                                        <ListItemText primary={item.symbol} />
-                                        <Box
-                                            sx={{
-                                                width: 12,
-                                                height: 12,
-                                                borderRadius: '50%',
-                                                bgcolor: getStatusColor(item.status) === 'success' ? 'success.main' :
-                                                    getStatusColor(item.status) === 'warning' ? 'warning.main' : 'error.main'
-                                            }}
-                                        />
-                                    </ListItemButton>
-                                </ListItem>
-                            ))}
-                        </List>
+                        {watchlistLoading ? (
+                            <Box sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
+                                <LoadingSpinner />
+                            </Box>
+                        ) : (
+                            <List dense>
+                                {watchlist.map((item) => (
+                                    <ListItem key={item.symbol} disablePadding>
+                                        <ListItemButton
+                                            selected={selectedSymbol === item.symbol}
+                                            onClick={() => handleSymbolChange(item.symbol)}
+                                        >
+                                            <ListItemText primary={item.symbol} />
+                                        </ListItemButton>
+                                    </ListItem>
+                                ))}
+                            </List>
+                        )}
                     </Paper>
                 </Grid>
 
@@ -193,14 +191,36 @@ export default function Dashboard() {
                         {/* News Section */}
                         <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', flexShrink: 0, maxHeight: '30%', overflow: 'auto' }}>
                             <Typography variant="h6" gutterBottom>News</Typography>
-                            <Stack spacing={1}>
-                                {news.map((item, index) => (
-                                    <Stack key={index} direction="row" spacing={1} alignItems="center">
-                                        {getSentimentIcon(item.sentiment)}
-                                        <Typography variant="body2">{item.headline}</Typography>
-                                    </Stack>
-                                ))}
-                            </Stack>
+                            {newsLoading ? (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                                    <LoadingSpinner />
+                                </Box>
+                            ) : news.length > 0 ? (
+                                <Stack spacing={1}>
+                                    {news.map((item, index) => (
+                                        <Stack key={index} direction="row" spacing={1} alignItems="flex-start">
+                                            {getSentimentIcon(item.sentiment)}
+                                            <Box sx={{ flexGrow: 1 }}>
+                                                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                                                    {item.title}
+                                                </Typography>
+                                                {item.summary && (
+                                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                                                        {item.summary.length > 100 ? `${item.summary.substring(0, 100)}...` : item.summary}
+                                                    </Typography>
+                                                )}
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {new Date(item.publishedAt).toLocaleString()} • {item.source}
+                                                </Typography>
+                                            </Box>
+                                        </Stack>
+                                    ))}
+                                </Stack>
+                            ) : (
+                                <Typography variant="body2" color="text.secondary">
+                                    No news available for {selectedSymbol}
+                                </Typography>
+                            )}
                         </Box>
                     </Paper>
                 </Grid>

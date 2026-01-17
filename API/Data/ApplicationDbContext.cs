@@ -15,6 +15,8 @@ public class ApplicationDbContext : DbContext
     }
 
     public DbSet<WatchlistSymbol> WatchlistSymbols { get; set; }
+    public DbSet<PaperTrade> PaperTrades { get; set; }
+    public DbSet<TradeHistory> TradeHistory { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -27,6 +29,58 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.Symbol).IsUnique();
             entity.Property(e => e.Symbol).IsRequired().HasMaxLength(10);
             entity.Property(e => e.CreatedAt).IsRequired();
+        });
+
+        // Configure PaperTrade
+        modelBuilder.Entity<PaperTrade>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Symbol).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.Direction).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.EntryPrice).HasPrecision(18, 2);
+            entity.Property(e => e.StopLoss).HasPrecision(18, 2);
+            entity.Property(e => e.TakeProfit).HasPrecision(18, 2);
+            entity.Property(e => e.ExitPrice).HasPrecision(18, 2);
+            entity.Property(e => e.PnL).HasPrecision(18, 2);
+            entity.Property(e => e.PnLPercent).HasPrecision(18, 4);
+            entity.Property(e => e.OpenedAt).IsRequired();
+            
+            // Store Reasons as JSON string
+            entity.Property(e => e.Reasons)
+                .HasConversion(
+                    v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
+                    v => System.Text.Json.JsonSerializer.Deserialize<List<string>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new List<string>()
+                );
+            
+            entity.HasIndex(e => e.Symbol);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.OpenedAt);
+        });
+
+        // Configure TradeHistory
+        modelBuilder.Entity<TradeHistory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Symbol).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.Direction).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.ExitReason).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.EntryPrice).HasPrecision(18, 2);
+            entity.Property(e => e.ExitPrice).HasPrecision(18, 2);
+            entity.Property(e => e.PnL).HasPrecision(18, 2);
+            entity.Property(e => e.PnLPercent).HasPrecision(18, 4);
+            entity.Property(e => e.OpenedAt).IsRequired();
+            entity.Property(e => e.ClosedAt).IsRequired();
+
+            // Foreign key relationship
+            entity.HasOne(e => e.PaperTrade)
+                .WithMany()
+                .HasForeignKey(e => e.PaperTradeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => e.Symbol);
+            entity.HasIndex(e => e.IsWinner);
+            entity.HasIndex(e => e.ClosedAt);
         });
     }
 }

@@ -1,0 +1,90 @@
+Using launch settings from D:\VS_Projects\TradingBot\API\Properties\launchSettings.json...
+Building...
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10401]
+      An 'IServiceProvider' was created for internal use by Entity Framework.
+warn: Microsoft.EntityFrameworkCore.Model.Validation[10620]
+      The property 'PaperTrade.Reasons' is a collection or enumeration type with a value converter but with no value comparer. Set a value comparer to ensure the collection/enumeration elements are compared correctly.
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10403]
+      Entity Framework Core 10.0.1 initialized 'ApplicationDbContext' using provider 'Microsoft.EntityFrameworkCore.Sqlite:10.0.1' with options: None
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20005]
+      Creating DbConnection.
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20006]
+      Created DbConnection. (4ms).
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20000]
+      Opening connection to database 'main' on server 'aibroker.db'.
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20001]
+      Opened connection to database 'main' on server 'D:\VS_Projects\TradingBot\API\aibroker.db'.
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20007]
+      Disposing connection to database 'main' on server 'aibroker.db'.
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20008]
+      Disposed connection to database 'main' on server 'aibroker.db' (0ms).
+dbug: Microsoft.EntityFrameworkCore.Database.Command[20103]
+      Creating DbCommand for 'ExecuteScalar'.
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20005]
+      Creating DbConnection.
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20006]
+      Created DbConnection. (0ms).
+dbug: Microsoft.EntityFrameworkCore.Database.Command[20104]
+      Created DbCommand for 'ExecuteScalar' (2ms).
+dbug: Microsoft.EntityFrameworkCore.Database.Command[20106]
+      Initialized DbCommand for 'ExecuteScalar' (4ms).
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20000]
+      Opening connection to database 'main' on server 'aibroker.db'.
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20001]
+      Opened connection to database 'main' on server 'D:\VS_Projects\TradingBot\API\aibroker.db'.
+dbug: Microsoft.EntityFrameworkCore.Database.Command[20100]
+      Executing DbCommand [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT COUNT(*) FROM "sqlite_master" WHERE "type" = 'table' AND "rootpage" IS NOT NULL;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (14ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT COUNT(*) FROM "sqlite_master" WHERE "type" = 'table' AND "rootpage" IS NOT NULL;
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20002]
+      Closing connection to database 'main' on server 'D:\VS_Projects\TradingBot\API\aibroker.db'.
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20003]
+      Closed connection to database 'main' on server 'aibroker.db' (1ms).
+dbug: Microsoft.EntityFrameworkCore.Infrastructure[10407]
+      'ApplicationDbContext' disposed.
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20007]
+      Disposing connection to database 'main' on server 'aibroker.db'.
+dbug: Microsoft.EntityFrameworkCore.Database.Connection[20008]
+      Disposed connection to database 'main' on server 'aibroker.db' (0ms).
+dbug: Microsoft.Extensions.Hosting.Internal.Host[1]
+      Hosting starting
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: https://localhost:7001
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:7002
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: D:\VS_Projects\TradingBot\API
+dbug: Microsoft.Extensions.Hosting.Internal.Host[2]
+      Hosting started
+info: API.Controllers.ScannerController[0]
+      Scanner request with timeframe 1
+info: API.Services.ScannerService[0]
+      Scanning 1 symbols for daytrading candidates
+dbug: API.Services.ScannerService[0]
+      Scanning symbol: AAPL with timeframe 1
+info: API.Data.YahooFinanceMarketDataProvider[0]
+      Fetching candles for AAPL with interval 1m and period 1d
+info: System.Net.Http.HttpClient.IMarketDataProvider.LogicalHandler[100]
+      Start processing HTTP request GET https://query1.finance.yahoo.com/v8/finance/chart/AAPL?*
+info: System.Net.Http.HttpClient.IMarketDataProvider.ClientHandler[100]
+      Sending HTTP request GET https://query1.finance.yahoo.com/v8/finance/chart/AAPL?*
+info: System.Net.Http.HttpClient.IMarketDataProvider.ClientHandler[101]
+      Received HTTP response headers after 220.1392ms - 200
+info: System.Net.Http.HttpClient.IMarketDataProvider.LogicalHandler[101]
+      End processing HTTP request after 224.0086ms - 200
+info: API.Data.YahooFinanceMarketDataProvider[0]
+      Successfully loaded 391 candles for AAPL
+dbug: API.Services.ScannerService[0]
+      Successfully retrieved 391 candles for AAPL
+info: API.Services.ScannerService[0]
+      Successfully scanned AAPL: Score=20, Trend=NONE, VolumeStatus=LOW
+info: API.Services.ScannerService[0]
+      Scan completed. Found 1 candidates out of 1 symbols
+info: API.Controllers.ScannerController[0]
+      Scanner found 1 candidates
