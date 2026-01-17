@@ -23,6 +23,8 @@ export function useReplayRefresh(callback: () => void, interval: number = 5000) 
         // In replay mode and running, trigger refresh at regular intervals
         if (state.mode === 'REPLAY' && state.isRunning) {
             console.log('useReplayRefresh: Setting up interval for replay mode');
+            
+            // Don't trigger immediately on first setup - wait for the interval
             const refreshInterval = setInterval(() => {
                 console.log('useReplayRefresh: Triggering callback');
                 callbackRef.current();

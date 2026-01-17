@@ -9,6 +9,7 @@ export function useScanner(symbols: string[], enabled: boolean = true) {
 
     // Use ref to track if we've scanned before and avoid infinite loops
     const lastSymbolsKey = useRef<string>('');
+    const isScanning = useRef<boolean>(false);
 
     useEffect(() => {
         const symbolsKey = symbols.join(',');
@@ -26,6 +27,13 @@ export function useScanner(symbols: string[], enabled: boolean = true) {
                 return;
             }
 
+            // Skip if already scanning
+            if (isScanning.current) {
+                console.log('Scan already in progress, skipping');
+                return;
+            }
+
+            isScanning.current = true;
             setLoading(true);
             setError(null);
             try {
@@ -39,6 +47,7 @@ export function useScanner(symbols: string[], enabled: boolean = true) {
                 setScanResults([]);
             } finally {
                 setLoading(false);
+                isScanning.current = false;
             }
         };
 
@@ -48,6 +57,13 @@ export function useScanner(symbols: string[], enabled: boolean = true) {
     const manualReload = useCallback(async () => {
         if (!enabled || symbols.length === 0) return;
 
+        // Skip if already scanning
+        if (isScanning.current) {
+            console.log('Manual reload: Scan already in progress, skipping');
+            return;
+        }
+
+        isScanning.current = true;
         setLoading(true);
         setError(null);
         try {
@@ -61,6 +77,7 @@ export function useScanner(symbols: string[], enabled: boolean = true) {
             setScanResults([]);
         } finally {
             setLoading(false);
+            isScanning.current = false;
         }
     }, [symbols, enabled]);
 

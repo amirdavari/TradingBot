@@ -33,6 +33,8 @@ export interface ScanResult {
     hasNews: boolean;
     confidence: number;
     reasons: string[];
+    hasError?: boolean;
+    errorMessage?: string;
 }
 
 export interface WatchlistSymbol {

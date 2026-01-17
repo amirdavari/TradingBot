@@ -40,9 +40,12 @@ public class YahooReplayMarketDataProvider : IMarketDataProvider
             .Where(c => c.Time <= currentTime)
             .ToList();
 
+        var firstCandle = allCandles.Count > 0 ? allCandles.First().Time : (DateTime?)null;
+        var lastCandle = allCandles.Count > 0 ? allCandles.Last().Time : (DateTime?)null;
+
         _logger.LogInformation(
-            "Replay mode: Filtered {FilteredCount} of {TotalCount} candles for {Symbol} (Replay time: {CurrentTime})",
-            filteredCandles.Count, allCandles.Count, symbol, currentTime);
+            "Replay mode: Filtered {FilteredCount} of {TotalCount} candles for {Symbol} (Replay time: {CurrentTime}, First candle: {FirstCandle}, Last candle: {LastCandle})",
+            filteredCandles.Count, allCandles.Count, symbol, currentTime, firstCandle, lastCandle);
 
         return filteredCandles;
     }

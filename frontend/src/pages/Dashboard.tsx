@@ -38,18 +38,40 @@ export default function Dashboard() {
 
     const { watchlist, loading: watchlistLoading } = useWatchlist();
 
+    // Get period based on timeframe (longer periods for smaller timeframes to ensure enough data in replay mode)
+    const getPeriodForTimeframe = (tf: number): string => {
+        switch (tf) {
+            case 1: return '5d';  // 1-minute charts need 5 days
+            case 5: return '2d';  // 5-minute charts need 2 days
+            case 15: return '1d'; // 15-minute charts need 1 day
+            default: return '1d';
+        }
+    };
+
     // Refresh data automatically when replay is running
     const refreshData = async () => {
         if (!loading) { // Don't refresh if already loading
             try {
+                const period = getPeriodForTimeframe(timeframe);
                 const [candlesData, signalData] = await Promise.all([
-                    getCandles(selectedSymbol, timeframe, '1d'),
+                    getCandles(selectedSymbol, timeframe, period),
                     getSignal(selectedSymbol, timeframe)
                 ]);
-                setCandles(candlesData);
-                setSignal(signalData);
+                
+                // Always create a new array reference to trigger React updates
+                // This ensures the chart updates even if candle count is the same
+                setCandles([...candlesData]);
+                setSignal({...signalData});
+                setError(null); // Clear any previous errors on successful refresh
+                
+                console.log(`Refreshed data: ${candlesData.length} candles, last candle: ${candlesData[candlesData.length - 1]?.time}`);
             } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : 'Failed to refresh data';
+                setError(errorMessage);
                 console.error('Error refreshing data in replay:', err);
+                // Clear candles and signal on error
+                setCandles([]);
+                setSignal(null);
             }
         }
     };
@@ -79,8 +101,9 @@ export default function Dashboard() {
             setLoading(true);
             setError(null);
             try {
+                const period = getPeriodForTimeframe(timeframe);
                 const [candlesData, signalData] = await Promise.all([
-                    getCandles(selectedSymbol, timeframe, '1d'),
+                    getCandles(selectedSymbol, timeframe, period),
                     getSignal(selectedSymbol, timeframe)
                 ]);
                 setCandles(candlesData);

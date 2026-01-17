@@ -5,20 +5,23 @@ namespace API.Services;
 /// <summary>
 /// Service for validating stock symbols.
 /// MVP: Uses Yahoo Finance to check if symbol exists.
+/// Note: Always uses real-time Yahoo Finance data, even in Replay mode,
+/// to ensure symbols can be validated regardless of current replay time.
 /// </summary>
 public class SymbolValidationService
 {
-    private readonly IMarketDataProvider _marketDataProvider;
+    private readonly YahooFinanceMarketDataProvider _yahooProvider;
     private readonly ILogger<SymbolValidationService> _logger;
 
-    public SymbolValidationService(IMarketDataProvider marketDataProvider, ILogger<SymbolValidationService> logger)
+    public SymbolValidationService(YahooFinanceMarketDataProvider yahooProvider, ILogger<SymbolValidationService> logger)
     {
-        _marketDataProvider = marketDataProvider;
+        _yahooProvider = yahooProvider;
         _logger = logger;
     }
 
     /// <summary>
     /// Validates if a stock symbol exists and has valid data.
+    /// Always uses real Yahoo Finance data, bypassing replay time filtering.
     /// </summary>
     /// <param name="symbol">The symbol to validate (e.g., AAPL, MSFT)</param>
     /// <returns>True if valid, false otherwise</returns>
@@ -29,15 +32,17 @@ public class SymbolValidationService
 
         try
         {
-            _logger.LogInformation("Validating symbol: {Symbol}", symbol);
+            _logger.LogInformation("Validating symbol: {Symbol} (using real-time data)", symbol);
 
             // Try to fetch recent candles (1 day, 5min interval)
-            var candles = await _marketDataProvider.GetCandlesAsync(symbol, 5, "1d");
+            // Always uses YahooFinanceMarketDataProvider directly to avoid replay time filtering
+            var candles = await _yahooProvider.GetCandlesAsync(symbol, 5, "1d");
 
             // Valid if we got at least some candles
             var isValid = candles.Count > 0;
 
-            _logger.LogInformation("Symbol {Symbol} validation result: {IsValid}", symbol, isValid);
+            _logger.LogInformation("Symbol {Symbol} validation result: {IsValid} ({CandleCount} candles)", 
+                symbol, isValid, candles.Count);
 
             return isValid;
         }

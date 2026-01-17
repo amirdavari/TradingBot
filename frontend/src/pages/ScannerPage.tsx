@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -28,11 +28,12 @@ export default function ScannerPage() {
     const { scanResults, loading: scanLoading, error: scanError, reload } = useScanner(symbols, symbols.length > 0);
 
     // Auto-refresh scanner during replay simulation (every 10 seconds)
-    useReplayRefresh(() => {
-        if (symbols.length > 0) {
-            reload();
-        }
-    }, 10000);
+    // Use useCallback to stabilize the callback function
+    const handleReplayRefresh = useCallback(() => {
+        reload();
+    }, [reload]);
+
+    useReplayRefresh(handleReplayRefresh, 10000);
 
     const [filterMinScore, setFilterMinScore] = useState(false);
 
@@ -126,37 +127,70 @@ export default function ScannerPage() {
                                 <TableRow
                                     key={result.symbol}
                                     hover
-                                    onClick={() => handleRowClick(result.symbol)}
-                                    sx={{ cursor: 'pointer' }}
+                                    onClick={() => !result.hasError && handleRowClick(result.symbol)}
+                                    sx={{ 
+                                        cursor: result.hasError ? 'default' : 'pointer',
+                                        bgcolor: result.hasError ? 'error.dark' : 'inherit',
+                                        opacity: result.hasError ? 0.7 : 1
+                                    }}
                                 >
                                     <TableCell>
                                         <Typography variant="body1" fontWeight="bold">
                                             {result.symbol}
                                         </Typography>
+                                        {result.hasError && (
+                                            <Typography variant="caption" color="error" sx={{ display: 'block' }}>
+                                                ⚠️ {result.errorMessage}
+                                            </Typography>
+                                        )}
                                     </TableCell>
                                     <TableCell>
-                                        <ScoreBadge score={result.score} />
+                                        {!result.hasError ? (
+                                            <ScoreBadge score={result.score} />
+                                        ) : (
+                                            <Typography variant="body2" color="text.secondary">-</Typography>
+                                        )}
                                     </TableCell>
                                     <TableCell>
-                                        <TrendBadge trend={result.trend} />
+                                        {!result.hasError ? (
+                                            <TrendBadge trend={result.trend} />
+                                        ) : (
+                                            <Typography variant="body2" color="text.secondary">-</Typography>
+                                        )}
                                     </TableCell>
                                     <TableCell>
-                                        <VolumeBadge status={result.volumeStatus} />
+                                        {!result.hasError ? (
+                                            <VolumeBadge status={result.volumeStatus} />
+                                        ) : (
+                                            <Typography variant="body2" color="text.secondary">-</Typography>
+                                        )}
                                     </TableCell>
                                     <TableCell>
-                                        <NewsBadge hasNews={result.hasNews} />
+                                        {!result.hasError ? (
+                                            <NewsBadge hasNews={result.hasNews} />
+                                        ) : (
+                                            <Typography variant="body2" color="text.secondary">-</Typography>
+                                        )}
                                     </TableCell>
                                     <TableCell>
-                                        <ConfidenceBadge confidence={result.confidence} />
+                                        {!result.hasError ? (
+                                            <ConfidenceBadge confidence={result.confidence} />
+                                        ) : (
+                                            <Typography variant="body2" color="text.secondary">-</Typography>
+                                        )}
                                     </TableCell>
                                     <TableCell>
-                                        <Box component="ul" sx={{ margin: 0, paddingLeft: 2 }}>
-                                            {result.reasons.map((reason: string, idx: number) => (
-                                                <li key={idx}>
-                                                    <Typography variant="body2">{reason}</Typography>
-                                                </li>
-                                            ))}
-                                        </Box>
+                                        {!result.hasError && result.reasons.length > 0 ? (
+                                            <Box component="ul" sx={{ margin: 0, paddingLeft: 2 }}>
+                                                {result.reasons.map((reason: string, idx: number) => (
+                                                    <li key={idx}>
+                                                        <Typography variant="body2">{reason}</Typography>
+                                                    </li>
+                                                ))}
+                                            </Box>
+                                        ) : (
+                                            <Typography variant="body2" color="text.secondary">-</Typography>
+                                        )}
                                     </TableCell>
                                     <TableCell align="right">
                                         <IconButton

@@ -13,7 +13,7 @@ public class CandlesController : ControllerBase
 {
     private readonly IMarketDataProvider _marketDataProvider;
     private readonly ILogger<CandlesController> _logger;
-    private static readonly string[] ValidPeriods = ["1d", "5d", "1mo"];
+    private static readonly string[] ValidPeriods = ["1d", "2d", "5d", "1mo"];
 
     public CandlesController(IMarketDataProvider marketDataProvider, ILogger<CandlesController> logger)
     {

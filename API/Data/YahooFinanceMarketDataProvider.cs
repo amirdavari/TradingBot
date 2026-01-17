@@ -1,4 +1,5 @@
 using API.Models;
+using API.Services;
 using System.Globalization;
 using System.Text.Json;
 
@@ -11,15 +12,20 @@ public class YahooFinanceMarketDataProvider : IMarketDataProvider
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<YahooFinanceMarketDataProvider> _logger;
+    private readonly IMarketTimeProvider _timeProvider;
 
     private static readonly SemaphoreSlim _rateLimiter = new(1, 1);
     private static DateTime _lastRequest = DateTime.MinValue;
     private static readonly TimeSpan MinRequestInterval = TimeSpan.FromMilliseconds(500);
 
-    public YahooFinanceMarketDataProvider(HttpClient httpClient, ILogger<YahooFinanceMarketDataProvider> logger)
+    public YahooFinanceMarketDataProvider(
+        HttpClient httpClient, 
+        ILogger<YahooFinanceMarketDataProvider> logger,
+        IMarketTimeProvider timeProvider)
     {
         _httpClient = httpClient;
         _logger = logger;
+        _timeProvider = timeProvider;
 
         // Set User-Agent to avoid blocking
         if (!_httpClient.DefaultRequestHeaders.Contains("User-Agent"))
@@ -32,15 +38,17 @@ public class YahooFinanceMarketDataProvider : IMarketDataProvider
     public async Task<List<Candle>> GetCandlesAsync(string symbol, int timeframe, string period = "1d")
     {
         // Rate limiting to avoid 429 errors
+        // Use market time to ensure consistency in replay mode
         await _rateLimiter.WaitAsync();
         try
         {
-            var timeSinceLastRequest = DateTime.UtcNow - _lastRequest;
+            var currentTime = _timeProvider.GetCurrentTime();
+            var timeSinceLastRequest = currentTime - _lastRequest;
             if (timeSinceLastRequest < MinRequestInterval)
             {
                 await Task.Delay(MinRequestInterval - timeSinceLastRequest);
             }
-            _lastRequest = DateTime.UtcNow;
+            _lastRequest = currentTime;
         }
         finally
         {

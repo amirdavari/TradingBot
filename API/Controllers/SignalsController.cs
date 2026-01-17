@@ -13,7 +13,7 @@ public class SignalsController : ControllerBase
 {
     private readonly SignalService _signalService;
     private readonly ILogger<SignalsController> _logger;
-    private static readonly string[] ValidPeriods = ["1d", "5d", "1mo"];
+    private static readonly string[] ValidPeriods = ["1d", "2d", "5d", "1mo"];
 
     public SignalsController(SignalService signalService, ILogger<SignalsController> logger)
     {

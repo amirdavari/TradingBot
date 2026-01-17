@@ -39,19 +39,19 @@ public class ScannerService
         var scanTasks = symbols.Select(symbol => ScanSymbolAsync(symbol, timeframe));
         var scanResults = await Task.WhenAll(scanTasks);
 
-        // Filter out null results (errors) and sort by score
-        var nullCount = scanResults.Count(r => r == null);
-        if (nullCount > 0)
-        {
-            _logger.LogWarning("{NullCount} symbols returned null results and were filtered out", nullCount);
-        }
-        
+        // All results are now returned (including errors), no filtering needed
         results = scanResults
-            .Where(r => r != null)
             .OrderByDescending(r => r!.Score)
             .ToList()!;
 
-        _logger.LogInformation("Scan completed. Found {Count} candidates out of {Total} symbols", results.Count, symbols.Length);
+        var errorCount = results.Count(r => r.HasError);
+        if (errorCount > 0)
+        {
+            _logger.LogWarning("{ErrorCount} symbols had errors during scanning", errorCount);
+        }
+
+        _logger.LogInformation("Scan completed. Found {Count} candidates out of {Total} symbols ({Errors} with errors)", 
+            results.Count, symbols.Length, errorCount);
 
         return results;
     }
@@ -60,11 +60,11 @@ public class ScannerService
     /// Scans a single symbol and calculates its daytrading score.
     /// Public for testing purposes.
     /// </summary>
-    public async Task<ScanResult?> ScanSymbolAsync(string symbol, int timeframe)
+    public async Task<ScanResult> ScanSymbolAsync(string symbol, int timeframe)
     {
         try
         {
-            _logger.LogDebug("Scanning symbol: {Symbol} with timeframe {Timeframe}", symbol, timeframe);
+            _logger.LogInformation("=== Scanning symbol: {Symbol} with timeframe {Timeframe} ===", symbol, timeframe);
             
             // Use longer period to ensure enough data even in replay mode
             var period = timeframe switch
@@ -75,17 +75,39 @@ public class ScannerService
                 _ => "1d"
             };
             
+            _logger.LogInformation("Requesting period: {Period} for symbol {Symbol}", period, symbol);
+            
             var candles = await _marketDataProvider.GetCandlesAsync(symbol, timeframe, period);
 
-            _logger.LogDebug("Retrieved {Count} candles for {Symbol}", candles.Count, symbol);
+            _logger.LogInformation("Retrieved {Count} candles for {Symbol}", candles.Count, symbol);
+            
+            if (candles.Count > 0)
+            {
+                _logger.LogInformation("First candle: {FirstTime}, Last candle: {LastTime}", 
+                    candles.First().Time, candles.Last().Time);
+            }
 
             if (candles.Count < 10)
             {
-                _logger.LogWarning("Insufficient data for {Symbol}. Got {Count} candles, need at least 10", symbol, candles.Count);
-                return null;
+                _logger.LogWarning("!!! INSUFFICIENT DATA for {Symbol}. Got {Count} candles, need at least 10 !!!", 
+                    symbol, candles.Count);
+                
+                // Return error result instead of null to show symbol in UI with error
+                return new ScanResult
+                {
+                    Symbol = symbol,
+                    Score = 0,
+                    Trend = "NONE",
+                    VolumeStatus = "LOW",
+                    HasNews = false,
+                    Confidence = 0.0,
+                    Reasons = new List<string>(),
+                    HasError = true,
+                    ErrorMessage = $"Insufficient data: Only {candles.Count} candles available (need at least 10)"
+                };
             }
 
-            _logger.LogDebug("Successfully retrieved {Count} candles for {Symbol}", candles.Count, symbol);
+            _logger.LogInformation("✓ Successfully retrieved {Count} sufficient candles for {Symbol}", candles.Count, symbol);
 
             var currentCandle = candles.Last();
             var currentPrice = currentCandle.Close;
@@ -132,13 +154,28 @@ public class ScannerService
                 VolumeStatus = volumeStatus,
                 HasNews = false, // MVP: News integration not yet implemented
                 Confidence = confidence,
-                Reasons = reasons
+                Reasons = reasons,
+                HasError = false,
+                ErrorMessage = null
             };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error scanning symbol {Symbol}. Exception: {Message}", symbol, ex.Message);
-            return null;
+            
+            // Return error result instead of null
+            return new ScanResult
+            {
+                Symbol = symbol,
+                Score = 0,
+                Trend = "NONE",
+                VolumeStatus = "LOW",
+                HasNews = false,
+                Confidence = 0.0,
+                Reasons = new List<string>(),
+                HasError = true,
+                ErrorMessage = $"Error: {ex.Message}"
+            };
         }
     }
 

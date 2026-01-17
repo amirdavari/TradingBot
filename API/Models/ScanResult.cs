@@ -39,4 +39,14 @@ public class ScanResult
     /// List of reasons why this stock was scored this way (max 3 for MVP).
     /// </summary>
     public List<string> Reasons { get; set; } = new();
+
+    /// <summary>
+    /// Indicates if there was an error scanning this symbol.
+    /// </summary>
+    public bool HasError { get; set; }
+
+    /// <summary>
+    /// Error message if HasError is true.
+    /// </summary>
+    public string? ErrorMessage { get; set; }
 }

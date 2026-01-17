@@ -17,6 +17,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<WatchlistSymbol> WatchlistSymbols { get; set; }
     public DbSet<PaperTrade> PaperTrades { get; set; }
     public DbSet<TradeHistory> TradeHistory { get; set; }
+    public DbSet<ReplayStateEntity> ReplayStates { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -81,6 +82,17 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.Symbol);
             entity.HasIndex(e => e.IsWinner);
             entity.HasIndex(e => e.ClosedAt);
+        });
+
+        // Configure ReplayStateEntity (Singleton)
+        modelBuilder.Entity<ReplayStateEntity>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedNever(); // Manually set to 1
+            entity.Property(e => e.ReplayStartTime).IsRequired();
+            entity.Property(e => e.Speed).IsRequired();
+            entity.Property(e => e.IsRunning).IsRequired();
+            entity.Property(e => e.Mode).IsRequired();
         });
     }
 }

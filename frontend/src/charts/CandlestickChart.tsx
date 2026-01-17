@@ -76,7 +76,11 @@ export default function CandlestickChart({ candles, signal }: CandlestickChartPr
 
     // Update candle data
     useEffect(() => {
-        if (!candlestickSeriesRef.current || !candles.length) return;
+        if (!candlestickSeriesRef.current || !candles.length || !chartRef.current) return;
+
+        // Save current zoom/visible range before updating data
+        const timeScale = chartRef.current.timeScale();
+        const visibleRange = timeScale.getVisibleRange();
 
         // Convert candles to lightweight-charts format
         const chartData: CandlestickData[] = candles.map((candle) => ({
@@ -87,20 +91,34 @@ export default function CandlestickChart({ candles, signal }: CandlestickChartPr
             close: candle.close,
         }));
 
+        // Use setData to replace all data (handles additions and updates)
         candlestickSeriesRef.current.setData(chartData);
+        
+        // Restore zoom/visible range if it was set
+        if (visibleRange) {
+            // Only fit content if it's the first load (no previous visible range)
+            timeScale.setVisibleRange(visibleRange);
+        } else {
+            // First load: fit content to view
+            timeScale.fitContent();
+        }
     }, [candles]);
 
     // Add signal lines (Entry, Stop-Loss, Take-Profit)
     useEffect(() => {
-        if (!chartRef.current || !signal || !candles.length) return;
-
-        // Remove existing price lines
         const series = candlestickSeriesRef.current;
-        if (!series) return;
+        if (!chartRef.current || !series || !signal || !candles.length) return;
+
+        // Create a unique key based on signal values to track if signal actually changed
+        const signalKey = `${signal.entry}-${signal.stopLoss}-${signal.takeProfit}`;
+        
+        // Remove all existing price lines by recreating the series
+        // This is the cleanest way to remove all price lines in lightweight-charts
+        const priceLines: any[] = [];
 
         // Add Entry line
         if (signal.entry > 0) {
-            series.createPriceLine({
+            const entryLine = series.createPriceLine({
                 price: signal.entry,
                 color: '#2196f3',
                 lineWidth: 2,
@@ -108,11 +126,12 @@ export default function CandlestickChart({ candles, signal }: CandlestickChartPr
                 axisLabelVisible: true,
                 title: 'Entry',
             });
+            priceLines.push(entryLine);
         }
 
         // Add Stop-Loss line (red)
         if (signal.stopLoss > 0) {
-            series.createPriceLine({
+            const slLine = series.createPriceLine({
                 price: signal.stopLoss,
                 color: '#f44336',
                 lineWidth: 2,
@@ -120,11 +139,12 @@ export default function CandlestickChart({ candles, signal }: CandlestickChartPr
                 axisLabelVisible: true,
                 title: 'Stop Loss',
             });
+            priceLines.push(slLine);
         }
 
         // Add Take-Profit line (green)
         if (signal.takeProfit > 0) {
-            series.createPriceLine({
+            const tpLine = series.createPriceLine({
                 price: signal.takeProfit,
                 color: '#4caf50',
                 lineWidth: 2,
@@ -132,10 +152,20 @@ export default function CandlestickChart({ candles, signal }: CandlestickChartPr
                 axisLabelVisible: true,
                 title: 'Take Profit',
             });
+            priceLines.push(tpLine);
         }
 
-        // Note: Price lines are automatically removed when series is removed
-    }, [signal, candles]);
+        // Cleanup: Remove price lines when signal changes
+        return () => {
+            priceLines.forEach(line => {
+                try {
+                    series.removePriceLine(line);
+                } catch (e) {
+                    // Ignore errors if line already removed
+                }
+            });
+        };
+    }, [signal?.entry, signal?.stopLoss, signal?.takeProfit, candles.length]);
 
     return (
         <Box
