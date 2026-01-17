@@ -201,6 +201,7 @@ Business-Logik darf nicht zwischen Live und Replay unterscheiden.
 
 ================================================================
 
+
 ### Backend – Modus & Zeitquelle (Pflicht)
 
 - [ ] Enum `MarketMode` definieren
