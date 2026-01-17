@@ -164,7 +164,11 @@ public class ReplayController : ControllerBase
         }
 
         _timeProvider.SetMode(mode.Value);
-        _logger.LogInformation("Market mode set to {Mode} via API", request.Mode);
+        
+        // Clear rate limit cache to avoid timeout issues after mode switch
+        Data.YahooFinanceMarketDataProvider.ClearRateLimitCache();
+        
+        _logger.LogInformation("Market mode set to {Mode} via API (cache cleared)", request.Mode);
         
         return Ok(new { message = $"Mode set to {request.Mode}", state = GetStateResponse() });
     }

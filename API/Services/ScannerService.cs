@@ -71,16 +71,17 @@ public class ScannerService
         {
             _logger.LogInformation("=== Scanning symbol: {Symbol} with timeframe {Timeframe} ===", symbol, timeframe);
             
-            // Use longer period to ensure enough data even in replay mode
+            // Yahoo Finance limits: 1m=7days, 5m/15m=60days
+            // Use maximum available period within these limits
             var period = timeframe switch
             {
-                1 => "5d",  // 1-minute candles: need more days
-                5 => "2d",  // 5-minute candles: 2 days should be enough
-                15 => "1d", // 15-minute candles: 1 day is sufficient
-                _ => "1d"
+                1 => "7d",   // 1-minute: Yahoo Finance limit is 7 days
+                5 => "60d",  // 5-minute: Use 60 days for good historical coverage
+                15 => "60d", // 15-minute: Use 60 days for good historical coverage
+                _ => "60d"
             };
             
-            _logger.LogInformation("Requesting period: {Period} for symbol {Symbol}", period, symbol);
+            _logger.LogInformation("Requesting period: {Period} for symbol {Symbol} (timeframe: {Timeframe}min)", period, symbol, timeframe);
             
             var candles = await _marketDataProvider.GetCandlesAsync(symbol, timeframe, period);
 

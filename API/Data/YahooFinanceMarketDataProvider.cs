@@ -36,23 +36,33 @@ public class YahooFinanceMarketDataProvider : IMarketDataProvider
         }
     }
 
+    /// <summary>
+    /// Clears the rate limiting cache. Useful when switching between modes.
+    /// </summary>
+    public static void ClearRateLimitCache()
+    {
+        _lastRequests.Clear();
+    }
+
     public async Task<List<Candle>> GetCandlesAsync(string symbol, int timeframe, string period = "1d")
     {
         // Rate limiting to avoid 429 errors (per symbol)
-        // Use market time to ensure consistency in replay mode
+        // Use real time (UtcNow) for rate limiting, not replay time
         await _rateLimiter.WaitAsync();
         try
         {
-            var currentTime = _timeProvider.GetCurrentTime();
+            var now = DateTime.UtcNow;
             var lastRequestTime = _lastRequests.GetOrAdd(symbol, DateTime.MinValue);
-            var timeSinceLastRequest = currentTime - lastRequestTime;
+            var timeSinceLastRequest = now - lastRequestTime;
             
             if (timeSinceLastRequest < MinRequestInterval)
             {
-                await Task.Delay(MinRequestInterval - timeSinceLastRequest);
+                var delay = MinRequestInterval - timeSinceLastRequest;
+                _logger.LogDebug("Rate limiting: waiting {Delay}ms for {Symbol}", delay.TotalMilliseconds, symbol);
+                await Task.Delay(delay);
             }
             
-            _lastRequests[symbol] = currentTime;
+            _lastRequests[symbol] = DateTime.UtcNow;
         }
         finally
         {
@@ -64,11 +74,15 @@ public class YahooFinanceMarketDataProvider : IMarketDataProvider
             // Map timeframe to Yahoo Finance interval
             var interval = MapTimeframeToInterval(timeframe);
 
-            // Build Yahoo Finance query URL
-            var url = BuildYahooFinanceUrl(symbol, interval, period);
+            // Get current time (respects replay mode)
+            var currentTime = _timeProvider.GetCurrentTime();
+            var mode = _timeProvider.GetMode();
 
-            _logger.LogInformation("Fetching candles for {Symbol} with interval {Interval} and period {Period}",
-                symbol, interval, period);
+            // Build Yahoo Finance query URL with absolute timestamps
+            var url = BuildYahooFinanceUrl(symbol, interval, period, currentTime);
+
+            _logger.LogInformation("Fetching candles for {Symbol} | Mode: {Mode} | Interval: {Interval} | Period: {Period} | Reference time: {Time}",
+                symbol, mode, interval, period, currentTime);
 
             // Add timeout to prevent hanging (10 seconds)
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -76,8 +90,8 @@ public class YahooFinanceMarketDataProvider : IMarketDataProvider
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("Failed to fetch data from Yahoo Finance. Status: {StatusCode}",
-                    response.StatusCode);
+                _logger.LogWarning("Failed to fetch data from Yahoo Finance. Status: {StatusCode}, URL: {Url}",
+                    response.StatusCode, url);
                 return new List<Candle>();
             }
 
@@ -109,11 +123,54 @@ public class YahooFinanceMarketDataProvider : IMarketDataProvider
         };
     }
 
-    private string BuildYahooFinanceUrl(string symbol, string interval, string period)
+    private string BuildYahooFinanceUrl(string symbol, string interval, string period, DateTime referenceTime)
     {
         // Yahoo Finance v8 Chart API
         var baseUrl = "https://query1.finance.yahoo.com/v8/finance/chart";
-        return $"{baseUrl}/{symbol}?interval={interval}&range={period}";
+        
+        // Convert period string to TimeSpan
+        var timeSpan = ParsePeriodToTimeSpan(period);
+        
+        // Calculate absolute timestamps: from (referenceTime - period) to referenceTime
+        var endTime = referenceTime;
+        var startTime = referenceTime.Subtract(timeSpan);
+        
+        // Convert to Unix timestamps
+        var period1 = new DateTimeOffset(startTime).ToUnixTimeSeconds();
+        var period2 = new DateTimeOffset(endTime).ToUnixTimeSeconds();
+        
+        // Use absolute timestamps instead of range parameter
+        var url = $"{baseUrl}/{symbol}?interval={interval}&period1={period1}&period2={period2}";
+        
+        _logger.LogInformation("Yahoo Finance URL for {Symbol}: {StartTime:yyyy-MM-dd HH:mm} to {EndTime:yyyy-MM-dd HH:mm} (Period: {Period}, {Days} days)",
+            symbol, startTime, endTime, period, timeSpan.TotalDays);
+        
+        return url;
+    }
+
+    private TimeSpan ParsePeriodToTimeSpan(string period)
+    {
+        // Parse period strings like "1d", "5d", "1mo", "60d"
+        if (period.EndsWith("d"))
+        {
+            var days = int.Parse(period.TrimEnd('d'));
+            return TimeSpan.FromDays(days);
+        }
+        else if (period.EndsWith("mo"))
+        {
+            var months = int.Parse(period.TrimEnd("mo".ToCharArray()));
+            return TimeSpan.FromDays(months * 30); // Approximate
+        }
+        else if (period.EndsWith("y"))
+        {
+            var years = int.Parse(period.TrimEnd('y'));
+            return TimeSpan.FromDays(years * 365); // Approximate
+        }
+        else
+        {
+            _logger.LogWarning("Unknown period format: {Period}, defaulting to 1 day", period);
+            return TimeSpan.FromDays(1);
+        }
     }
 
     private List<Candle> ParseYahooFinanceResponse(string jsonContent)
