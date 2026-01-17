@@ -10,42 +10,55 @@ export function useScanner(symbols: string[], enabled: boolean = true) {
     // Use ref to track if we've scanned before and avoid infinite loops
     const lastSymbolsKey = useRef<string>('');
     const isScanning = useRef<boolean>(false);
+    const hasInitialScan = useRef<boolean>(false);
 
     useEffect(() => {
         const symbolsKey = symbols.join(',');
 
-        // Only scan if symbols changed or it's the first load
-        if (!enabled || symbolsKey === lastSymbolsKey.current) {
+        // Don't scan if disabled or no symbols
+        if (!enabled || symbols.length === 0) {
+            console.log('useScanner: Skipping scan - enabled:', enabled, 'symbols:', symbols.length);
             return;
         }
 
-        lastSymbolsKey.current = symbolsKey;
+        // Only scan if symbols changed
+        if (symbolsKey === lastSymbolsKey.current && hasInitialScan.current) {
+            console.log('useScanner: Skipping scan - symbols unchanged:', symbolsKey);
+            return;
+        }
 
         const scan = async () => {
-            if (symbols.length === 0) {
-                setScanResults([]);
-                return;
-            }
-
             // Skip if already scanning
             if (isScanning.current) {
                 console.log('Scan already in progress, skipping');
                 return;
             }
 
+            lastSymbolsKey.current = symbolsKey;
+            hasInitialScan.current = true;
             isScanning.current = true;
             setLoading(true);
             setError(null);
+            
+            // Create a timeout promise
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Scan timeout after 30 seconds')), 30000);
+            });
+            
             try {
                 console.log('Scanning symbols:', symbols);
-                const results = await scanStocks(symbols, 1);
+                const results = await Promise.race([
+                    scanStocks(symbols, 1),
+                    timeoutPromise
+                ]) as ScanResult[];
                 console.log('Scan results:', results);
                 setScanResults(results);
             } catch (err) {
                 console.error('Scan error:', err);
                 setError(err instanceof Error ? err.message : 'Failed to scan stocks');
-                setScanResults([]);
+                // Don't clear results on error, keep old results
             } finally {
+                console.log('Scan completed, resetting isScanning flag');
                 setLoading(false);
                 isScanning.current = false;
             }
@@ -55,7 +68,12 @@ export function useScanner(symbols: string[], enabled: boolean = true) {
     }, [symbols, enabled]);
 
     const manualReload = useCallback(async () => {
-        if (!enabled || symbols.length === 0) return;
+        console.log('Manual reload requested - enabled:', enabled, 'symbols:', symbols.length);
+        
+        if (!enabled || symbols.length === 0) {
+            console.log('Manual reload: Skipping - not enabled or no symbols');
+            return;
+        }
 
         // Skip if already scanning
         if (isScanning.current) {
@@ -66,16 +84,26 @@ export function useScanner(symbols: string[], enabled: boolean = true) {
         isScanning.current = true;
         setLoading(true);
         setError(null);
+        
+        // Create a timeout promise
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Scan timeout after 30 seconds')), 30000);
+        });
+        
         try {
             console.log('Manual reload: Scanning symbols:', symbols);
-            const results = await scanStocks(symbols, 1);
+            const results = await Promise.race([
+                scanStocks(symbols, 1),
+                timeoutPromise
+            ]) as ScanResult[];
             console.log('Manual reload: Scan results:', results);
             setScanResults(results);
         } catch (err) {
             console.error('Manual reload: Scan error:', err);
             setError(err instanceof Error ? err.message : 'Failed to scan stocks');
-            setScanResults([]);
+            // Don't clear results on error
         } finally {
+            console.log('Manual reload: Scan completed, resetting isScanning flag');
             setLoading(false);
             isScanning.current = false;
         }

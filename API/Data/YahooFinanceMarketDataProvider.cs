@@ -1,5 +1,6 @@
 using API.Models;
 using API.Services;
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.Json;
 
@@ -15,7 +16,7 @@ public class YahooFinanceMarketDataProvider : IMarketDataProvider
     private readonly IMarketTimeProvider _timeProvider;
 
     private static readonly SemaphoreSlim _rateLimiter = new(1, 1);
-    private static DateTime _lastRequest = DateTime.MinValue;
+    private static readonly ConcurrentDictionary<string, DateTime> _lastRequests = new();
     private static readonly TimeSpan MinRequestInterval = TimeSpan.FromMilliseconds(500);
 
     public YahooFinanceMarketDataProvider(
@@ -37,18 +38,21 @@ public class YahooFinanceMarketDataProvider : IMarketDataProvider
 
     public async Task<List<Candle>> GetCandlesAsync(string symbol, int timeframe, string period = "1d")
     {
-        // Rate limiting to avoid 429 errors
+        // Rate limiting to avoid 429 errors (per symbol)
         // Use market time to ensure consistency in replay mode
         await _rateLimiter.WaitAsync();
         try
         {
             var currentTime = _timeProvider.GetCurrentTime();
-            var timeSinceLastRequest = currentTime - _lastRequest;
+            var lastRequestTime = _lastRequests.GetOrAdd(symbol, DateTime.MinValue);
+            var timeSinceLastRequest = currentTime - lastRequestTime;
+            
             if (timeSinceLastRequest < MinRequestInterval)
             {
                 await Task.Delay(MinRequestInterval - timeSinceLastRequest);
             }
-            _lastRequest = currentTime;
+            
+            _lastRequests[symbol] = currentTime;
         }
         finally
         {
@@ -66,7 +70,9 @@ public class YahooFinanceMarketDataProvider : IMarketDataProvider
             _logger.LogInformation("Fetching candles for {Symbol} with interval {Interval} and period {Period}",
                 symbol, interval, period);
 
-            var response = await _httpClient.GetAsync(url);
+            // Add timeout to prevent hanging (10 seconds)
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var response = await _httpClient.GetAsync(url, cts.Token);
 
             if (!response.IsSuccessStatusCode)
             {

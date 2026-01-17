@@ -11,31 +11,43 @@ import { useReplayState } from './useReplayState';
 export function useReplayRefresh(callback: () => void, interval: number = 5000) {
     const { state } = useReplayState(2000); // Poll every 2 seconds
     const callbackRef = useRef(callback);
+    const intervalIdRef = useRef<NodeJS.Timeout | null>(null);
 
     // Keep callback ref up to date
     useEffect(() => {
         callbackRef.current = callback;
     }, [callback]);
 
+    // Extract values we care about
+    const isReplayRunning = state?.mode === 'REPLAY' && state?.isRunning === true;
+
     useEffect(() => {
-        if (!state) return;
+        // Clear any existing interval
+        if (intervalIdRef.current) {
+            clearInterval(intervalIdRef.current);
+            intervalIdRef.current = null;
+        }
 
         // In replay mode and running, trigger refresh at regular intervals
-        if (state.mode === 'REPLAY' && state.isRunning) {
+        if (isReplayRunning) {
             console.log('useReplayRefresh: Setting up interval for replay mode');
             
-            // Don't trigger immediately on first setup - wait for the interval
-            const refreshInterval = setInterval(() => {
+            intervalIdRef.current = setInterval(() => {
                 console.log('useReplayRefresh: Triggering callback');
                 callbackRef.current();
             }, interval);
-
-            return () => {
-                console.log('useReplayRefresh: Clearing interval');
-                clearInterval(refreshInterval);
-            };
+        } else {
+            console.log('useReplayRefresh: Not in replay mode or not running, no interval');
         }
-    }, [state?.mode, state?.isRunning, interval]); // Only depend on these values
+
+        return () => {
+            if (intervalIdRef.current) {
+                console.log('useReplayRefresh: Cleanup - clearing interval');
+                clearInterval(intervalIdRef.current);
+                intervalIdRef.current = null;
+            }
+        };
+    }, [isReplayRunning, interval]); // Only depend on the boolean, not the whole state object
 }
 
 /**

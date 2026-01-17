@@ -19,6 +19,7 @@ public class YahooNewsProvider : INewsProvider
 
     public async Task<List<NewsItem>> GetNewsAsync(string symbol, int count = 10)
     {
+        _logger.LogInformation("YahooNewsProvider.GetNewsAsync called for {Symbol}, count={Count}", symbol, count);
         try
         {
             var url = $"https://query1.finance.yahoo.com/v1/finance/search?q={symbol}&quotesCount=0&newsCount={count}";

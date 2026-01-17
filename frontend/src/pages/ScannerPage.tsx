@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -24,7 +24,10 @@ import { useReplayRefresh } from '../hooks/useReplayRefresh';
 export default function ScannerPage() {
     const navigate = useNavigate();
     const { watchlist, loading: watchlistLoading, addSymbol, deleteSymbol } = useWatchlist();
-    const symbols = watchlist.map(w => w.symbol);
+    
+    // Memoize symbols array to prevent unnecessary re-scans
+    const symbols = useMemo(() => watchlist.map(w => w.symbol), [watchlist]);
+    
     const { scanResults, loading: scanLoading, error: scanError, reload } = useScanner(symbols, symbols.length > 0);
 
     // Auto-refresh scanner during replay simulation (every 10 seconds)
@@ -40,6 +43,12 @@ export default function ScannerPage() {
     const filteredResults = filterMinScore
         ? scanResults.filter(r => r.score >= 70)
         : scanResults;
+
+    // Debug logging
+    useEffect(() => {
+        console.log('ScannerPage: scanResults updated:', scanResults.length, scanResults);
+        console.log('ScannerPage: filteredResults:', filteredResults.length, filteredResults);
+    }, [scanResults, filteredResults]);
 
     const handleRowClick = (symbol: string) => {
         navigate(`/symbol/${symbol}`);

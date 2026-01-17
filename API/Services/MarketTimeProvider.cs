@@ -9,6 +9,7 @@ public class MarketTimeProvider : IMarketTimeProvider
     private readonly Models.ReplayState _replayState;
     private readonly ILogger<MarketTimeProvider> _logger;
     private readonly IServiceProvider _serviceProvider;
+    private readonly object _syncRoot = new();
 
     public MarketTimeProvider(ILogger<MarketTimeProvider> logger, IServiceProvider serviceProvider)
     {
@@ -92,9 +93,12 @@ public class MarketTimeProvider : IMarketTimeProvider
     /// </summary>
     public DateTime GetCurrentTime()
     {
-        return _replayState.Mode == Models.MarketMode.Live
-            ? DateTime.UtcNow
-            : _replayState.CurrentTime;
+        lock (_syncRoot)
+        {
+            return _replayState.Mode == Models.MarketMode.Live
+                ? DateTime.UtcNow
+                : _replayState.CurrentTime;
+        }
     }
 
     /// <summary>
@@ -102,15 +106,29 @@ public class MarketTimeProvider : IMarketTimeProvider
     /// </summary>
     public Models.MarketMode GetMode()
     {
-        return _replayState.Mode;
+        lock (_syncRoot)
+        {
+            return _replayState.Mode;
+        }
     }
 
     /// <summary>
     /// Gets the current replay state.
+    /// Returns a copy to prevent external modifications.
     /// </summary>
     public Models.ReplayState GetReplayState()
     {
-        return _replayState;
+        lock (_syncRoot)
+        {
+            return new Models.ReplayState
+            {
+                Mode = _replayState.Mode,
+                CurrentTime = _replayState.CurrentTime,
+                ReplayStartTime = _replayState.ReplayStartTime,
+                Speed = _replayState.Speed,
+                IsRunning = _replayState.IsRunning
+            };
+        }
     }
 
     /// <summary>
@@ -118,9 +136,12 @@ public class MarketTimeProvider : IMarketTimeProvider
     /// </summary>
     public void SetMode(Models.MarketMode mode)
     {
-        _logger.LogInformation("Switching market mode from {OldMode} to {NewMode}", _replayState.Mode, mode);
-        _replayState.Mode = mode;
-        SaveStateToDatabase();
+        lock (_syncRoot)
+        {
+            _logger.LogInformation("Switching market mode from {OldMode} to {NewMode}", _replayState.Mode, mode);
+            _replayState.Mode = mode;
+            SaveStateToDatabase();
+        }
     }
 
     /// <summary>
@@ -129,7 +150,10 @@ public class MarketTimeProvider : IMarketTimeProvider
     /// </summary>
     public void UpdateReplayState(Action<Models.ReplayState> updateAction)
     {
-        updateAction(_replayState);
-        SaveStateToDatabase();
+        lock (_syncRoot)
+        {
+            updateAction(_replayState);
+            SaveStateToDatabase();
+        }
     }
 }

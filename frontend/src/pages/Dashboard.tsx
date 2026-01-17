@@ -122,9 +122,11 @@ export default function Dashboard() {
     // Fetch news when symbol changes
     useEffect(() => {
         const fetchNewsData = async () => {
+            console.log(`Fetching news for symbol: ${selectedSymbol}`);
             setNewsLoading(true);
             try {
                 const newsData = await getNews(selectedSymbol, 5);
+                console.log(`News fetched for ${selectedSymbol}:`, newsData);
                 setNews(newsData);
             } catch (err) {
                 console.error('Error fetching news:', err);
@@ -209,8 +211,8 @@ export default function Dashboard() {
 
                 {/* Chart Area */}
                 <Grid size={7} sx={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                    <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.default', position: 'relative', minHeight: 0 }}>
+                    <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', minHeight: 0, overflow: 'hidden' }}>
                             {loading ? (
                                 <LoadingSpinner />
                             ) : error ? (
@@ -232,7 +234,7 @@ export default function Dashboard() {
                         </Box>
 
                         {/* News Section */}
-                        <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', flexShrink: 0, maxHeight: '30%', overflow: 'auto' }}>
+                        <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', flexShrink: 0, maxHeight: '200px', overflow: 'auto', bgcolor: 'background.paper' }}>
                             <Typography variant="h6" gutterBottom>News</Typography>
                             {newsLoading ? (
                                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>

@@ -308,7 +308,7 @@ Business-Logik darf nicht zwischen Live und Replay unterscheiden.
 - [x] Scanner aktualisiert sich anhand Replay-Zeit
 - [x] Charts wachsen Candle-für-Candle
 - [x] Signale erscheinen zeitabhängig
-- [ ] Paper-Trading öffnet/schließt Trades anhand Replay-Zeit
+
 
 ================================================================
 
@@ -320,11 +320,63 @@ Business-Logik darf nicht zwischen Live und Replay unterscheiden.
 - [x] Simulation darf Live-Code NICHT verändern
 - [x] Simulation muss visuell klar erkennbar sein
 
+================================================================
+
+## PHASE 10.8 – News Simulation (Replay)
+
+### Backend – News Simulation (Replay)
+
+- [x] `INewsProvider` Interface unverändert lassen
+- [x] `YahooReplayNewsProvider` implementieren
+      - Lädt historische Yahoo-News
+      - Filtert News strikt:
+            News.PublishedAt <= ReplayState.CurrentTime
+      - Gibt identisches NewsItem-Format wie Live-Provider zurück
+- [x] News-Daten werden:
+      - NICHT zufällig generiert
+      - NICHT neu berechnet
+      - NUR zeitlich gefiltert
+
+================================================================
+### Backend – News & Replay-Zeit (Pflicht)
+
+- [x] Sicherstellen:
+      - News-Zeit basiert ausschließlich auf PublishedAt
+      - KEIN DateTime.Now / DateTime.UtcNow im Replay
+- [x] Scanner & Signal-Logik erhalten News:
+      - nur wenn sie zum Replay-Zeitpunkt bereits veröffentlicht sind
+
+================================================================
+### Backend – Replay API (News relevant)
+
+- [x] News-Endpunkte berücksichtigen ReplayState automatisch
+      - KEIN separater News-Replay-Endpunkt
+      - Mode-Logik entscheidet Provider-Auswahl
+
+================================================================
+### Frontend – News Verhalten in Simulation
+
+- [x] News erscheinen erst ab ihrem PublishedAt-Zeitpunkt
+- [x] News verschwinden NICHT rückwirkend
+- [x] News-Listen werden bei Replay-Ticks aktualisiert
+- [x] UI zeigt klar:
+      - News ist Teil der Simulation (kein Live-Feed)
+
+================================================================
+### Verbindliche Regeln – News Simulation
+
+- [x] KEINE Mock-News im Simulation Mode
+- [x] KEINE zufälligen Sentiments
+- [x] KEINE künstlichen News-Events
+- [x] News-Sentiment basiert auf gespeicherten News-Daten
+- [x] News-Logik unterscheidet NICHT zwischen Live und Replay
+
 
 ## PHASE 11 – Paper-Trading (Pflicht)
  
 - [ ] PaperTrade Entity erstellen
 - [ ] Trades in Datenbank speichern
+- [ ] Paper-Trading öffnet/schließt Trades anhand Replay-Zeit
 - [ ] Trade schließen (SL / TP)
 - [ ] PnL berechnen
 - [ ] Trade Historie aus DB laden
@@ -332,7 +384,7 @@ Business-Logik darf nicht zwischen Live und Replay unterscheiden.
   - Winrate
   - Gesamt-PnL
   - Max Drawdown
-
+- [ ] Statistik anzeigen im Frontend
 ---
 
 ## PHASE 12 – Qualität & Abschluss

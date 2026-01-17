@@ -4,22 +4,27 @@ using API.Models;
 namespace API.Services;
 
 /// <summary>
-/// Service for calculating trading signals based on technical analysis.
+/// Service for calculating trading signals based on technical analysis and news sentiment.
 /// Provides entry, stop-loss, and take-profit levels with confidence scoring.
 /// </summary>
 public class SignalService
 {
     private readonly IMarketDataProvider _marketDataProvider;
+    private readonly INewsProvider _newsProvider;
     private readonly ILogger<SignalService> _logger;
 
-    public SignalService(IMarketDataProvider marketDataProvider, ILogger<SignalService> logger)
+    public SignalService(
+        IMarketDataProvider marketDataProvider, 
+        INewsProvider newsProvider,
+        ILogger<SignalService> logger)
     {
         _marketDataProvider = marketDataProvider;
+        _newsProvider = newsProvider;
         _logger = logger;
     }
 
     /// <summary>
-    /// Generates a trading signal for a given symbol.
+    /// Generates a trading signal for a given symbol using technical analysis and news sentiment.
     /// </summary>
     public async Task<TradeSignal> GenerateSignalAsync(string symbol, int timeframe = 5, string period = "1d")
     {
@@ -46,6 +51,9 @@ public class SignalService
         // Calculate volatility (ATR-like)
         var atr = CalculateATR(candles, 14);
 
+        // Get news sentiment
+        var (sentimentScore, sentimentReasons) = await AnalyzeNewsSentiment(symbol);
+
         // Determine direction and levels
         var signal = new TradeSignal
         {
@@ -67,7 +75,16 @@ public class SignalService
             signal.TakeProfit = currentPrice + (atr * 2.5m);
             signal.Reasons.Add($"Price ({currentPrice:F2}) above VWAP ({vwap:F2})");
             signal.Reasons.Add($"Volume {volumeRatio:F2}x above average");
-            signal.Confidence = CalculateConfidence(isAboveVWAP, volumeRatio, atr, currentPrice);
+            signal.Confidence = CalculateConfidence(isAboveVWAP, volumeRatio, atr, currentPrice, sentimentScore);
+            
+            // Add sentiment reasons and confidence impact
+            signal.Reasons.AddRange(sentimentReasons);
+            if (sentimentScore != 0)
+            {
+                int sentimentImpact = (int)(sentimentScore * 15);
+                string impactSign = sentimentImpact > 0 ? "+" : "";
+                signal.Reasons.Add($"📊 News Confidence Impact: {impactSign}{sentimentImpact} points");
+            }
         }
         // SHORT Signal Logic
         else if (!isAboveVWAP && volumeRatio > 1.2)
@@ -78,7 +95,16 @@ public class SignalService
             signal.TakeProfit = currentPrice - (atr * 2.5m);
             signal.Reasons.Add($"Price ({currentPrice:F2}) below VWAP ({vwap:F2})");
             signal.Reasons.Add($"Volume {volumeRatio:F2}x above average");
-            signal.Confidence = CalculateConfidence(!isAboveVWAP, volumeRatio, atr, currentPrice);
+            signal.Confidence = CalculateConfidence(!isAboveVWAP, volumeRatio, atr, currentPrice, sentimentScore);
+            
+            // Add sentiment reasons and confidence impact
+            signal.Reasons.AddRange(sentimentReasons);
+            if (sentimentScore != 0)
+            {
+                int sentimentImpact = (int)(sentimentScore * 15);
+                string impactSign = sentimentImpact > 0 ? "+" : "";
+                signal.Reasons.Add($"📊 News Confidence Impact: {impactSign}{sentimentImpact} points");
+            }
         }
         // No Signal
         else
@@ -89,6 +115,9 @@ public class SignalService
             {
                 signal.Reasons.Add($"Volume only {volumeRatio:F2}x average (need >1.2x)");
             }
+            
+            // Still show sentiment even with no technical signal
+            signal.Reasons.AddRange(sentimentReasons);
             signal.Confidence = 0;
         }
 
@@ -112,6 +141,58 @@ public class SignalService
             symbol, signal.Direction, signal.Confidence);
 
         return signal;
+    }
+
+    /// <summary>
+    /// Analyzes news sentiment for a symbol.
+    /// Returns sentiment score (-1 to +1) and list of sentiment reasons.
+    /// </summary>
+    private async Task<(double sentimentScore, List<string> reasons)> AnalyzeNewsSentiment(string symbol)
+    {
+        try
+        {
+            var news = await _newsProvider.GetNewsAsync(symbol, 5);
+            var reasons = new List<string>();
+            
+            if (news.Count == 0)
+            {
+                reasons.Add("No recent news available");
+                return (0, reasons);
+            }
+
+            // Calculate sentiment score
+            int positiveCount = news.Count(n => n.Sentiment.Equals("positive", StringComparison.OrdinalIgnoreCase));
+            int negativeCount = news.Count(n => n.Sentiment.Equals("negative", StringComparison.OrdinalIgnoreCase));
+            int neutralCount = news.Count - positiveCount - negativeCount;
+
+            // Score: -1 (very negative) to +1 (very positive)
+            double sentimentScore = (positiveCount - negativeCount) / (double)news.Count;
+
+            // Add sentiment summary
+            if (positiveCount > negativeCount + 1)
+            {
+                reasons.Add($"📰 Positive news sentiment ({positiveCount} positive, {negativeCount} negative)");
+            }
+            else if (negativeCount > positiveCount + 1)
+            {
+                reasons.Add($"📰 Negative news sentiment ({positiveCount} positive, {negativeCount} negative)");
+            }
+            else
+            {
+                reasons.Add($"📰 Neutral news sentiment ({positiveCount} positive, {negativeCount} negative, {neutralCount} neutral)");
+            }
+
+            _logger.LogInformation(
+                "News sentiment for {Symbol}: Score={SentimentScore:F2}, Positive={Positive}, Negative={Negative}",
+                symbol, sentimentScore, positiveCount, negativeCount);
+
+            return (sentimentScore, reasons);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to analyze news sentiment for {Symbol}", symbol);
+            return (0, new List<string> { "News sentiment unavailable" });
+        }
     }
 
     /// <summary>
@@ -169,9 +250,9 @@ public class SignalService
     }
 
     /// <summary>
-    /// Calculates confidence score (0-100) based on signal strength.
+    /// Calculates confidence score (0-100) based on signal strength including news sentiment.
     /// </summary>
-    private int CalculateConfidence(bool trendConfirmed, double volumeRatio, decimal atr, decimal price)
+    private int CalculateConfidence(bool trendConfirmed, double volumeRatio, decimal atr, decimal price, double sentimentScore)
     {
         int confidence = 50; // Base confidence
 
@@ -201,6 +282,12 @@ public class SignalService
         {
             confidence -= 10;
         }
+
+        // News sentiment adjustment
+        // Positive sentiment: +0 to +15 points
+        // Negative sentiment: -15 to +0 points
+        int sentimentAdjustment = (int)(sentimentScore * 15);
+        confidence += sentimentAdjustment;
 
         // Ensure confidence stays within 0-100
         return Math.Clamp(confidence, 0, 100);

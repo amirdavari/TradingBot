@@ -56,12 +56,21 @@ export async function fetchWithConfig<T>(
     endpoint: string,
     options?: RequestInit
 ): Promise<T> {
-    const response = await fetch(`${API_CONFIG.baseURL}${endpoint}`, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers,
-        },
-    });
-    return handleResponse<T>(response);
+    const url = `${API_CONFIG.baseURL}${endpoint}`;
+    console.log('[API] Fetching:', url);
+    
+    try {
+        const response = await fetch(url, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options?.headers,
+            },
+        });
+        console.log('[API] Response received:', response.status, url);
+        return handleResponse<T>(response);
+    } catch (error) {
+        console.error('[API] Fetch error:', url, error);
+        throw error;
+    }
 }

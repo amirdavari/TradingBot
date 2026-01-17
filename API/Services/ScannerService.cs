@@ -5,11 +5,12 @@ namespace API.Services;
 
 /// <summary>
 /// Service for scanning stocks and identifying daytrading candidates.
-/// MVP: Simple scoring based on volume, volatility, and VWAP.
+/// Includes volume, volatility, VWAP analysis, and news sentiment.
 /// </summary>
 public class ScannerService
 {
     private readonly IMarketDataProvider _marketDataProvider;
+    private readonly INewsProvider _newsProvider;
     private readonly ILogger<ScannerService> _logger;
 
     // Default symbols to scan (can be configured later)
@@ -19,9 +20,13 @@ public class ScannerService
         "META", "NVDA", "AMD", "NFLX", "SPY"
     ];
 
-    public ScannerService(IMarketDataProvider marketDataProvider, ILogger<ScannerService> logger)
+    public ScannerService(
+        IMarketDataProvider marketDataProvider, 
+        INewsProvider newsProvider,
+        ILogger<ScannerService> logger)
     {
         _marketDataProvider = marketDataProvider;
+        _newsProvider = newsProvider;
         _logger = logger;
     }
 
@@ -136,8 +141,11 @@ public class ScannerService
                 _ => "LOW"
             };
 
+            // Check for news
+            var hasNews = await CheckForNewsAsync(symbol);
+
             // Calculate score and confidence
-            var score = CalculateScore(volumeRatio, (double)volatility, (double)Math.Abs(distanceToVWAP), false);
+            var score = CalculateScore(volumeRatio, (double)volatility, (double)Math.Abs(distanceToVWAP), hasNews);
             var confidence = CalculateConfidence(volumeRatio, volatility);
 
             // Generate reasons
@@ -152,7 +160,7 @@ public class ScannerService
                 Score = score,
                 Trend = trend,
                 VolumeStatus = volumeStatus,
-                HasNews = false, // MVP: News integration not yet implemented
+                HasNews = hasNews,
                 Confidence = confidence,
                 Reasons = reasons,
                 HasError = false,
@@ -176,6 +184,40 @@ public class ScannerService
                 HasError = true,
                 ErrorMessage = $"Error: {ex.Message}"
             };
+        }
+    }
+
+    /// <summary>
+    /// Checks if there are recent news for a symbol.
+    /// </summary>
+    private async Task<bool> CheckForNewsAsync(string symbol)
+    {
+        try
+        {
+            _logger.LogInformation("Checking news for {Symbol}...", symbol);
+            
+            // Use Task.WhenAny for timeout without CancellationToken
+            var newsTask = _newsProvider.GetNewsAsync(symbol, 5);
+            var timeoutTask = Task.Delay(5000);
+            
+            var completedTask = await Task.WhenAny(newsTask, timeoutTask);
+            
+            if (completedTask == newsTask)
+            {
+                var news = await newsTask;
+                _logger.LogInformation("Found {Count} news items for {Symbol}", news.Count, symbol);
+                return news.Count > 0;
+            }
+            else
+            {
+                _logger.LogWarning("News check for {Symbol} timed out after 5 seconds", symbol);
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to check news for {Symbol}", symbol);
+            return false;
         }
     }
 
