@@ -43,6 +43,8 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.EntryPrice).HasPrecision(18, 2);
             entity.Property(e => e.StopLoss).HasPrecision(18, 2);
             entity.Property(e => e.TakeProfit).HasPrecision(18, 2);
+            entity.Property(e => e.PositionSize).HasPrecision(18, 4);
+            entity.Property(e => e.InvestAmount).HasPrecision(18, 2);
             entity.Property(e => e.ExitPrice).HasPrecision(18, 2);
             entity.Property(e => e.PnL).HasPrecision(18, 2);
             entity.Property(e => e.PnLPercent).HasPrecision(18, 4);

@@ -172,15 +172,15 @@ public class SignalService
             // Add sentiment summary
             if (positiveCount > negativeCount + 1)
             {
-                reasons.Add($"📰 Positive news sentiment ({positiveCount} positive, {negativeCount} negative)");
+                reasons.Add($"📰 Positive news ({positiveCount}+ / {negativeCount}-)");
             }
             else if (negativeCount > positiveCount + 1)
             {
-                reasons.Add($"📰 Negative news sentiment ({positiveCount} positive, {negativeCount} negative)");
+                reasons.Add($"📰 Negative news ({positiveCount}+ / {negativeCount}-)");
             }
             else
             {
-                reasons.Add($"📰 Neutral news sentiment ({positiveCount} positive, {negativeCount} negative, {neutralCount} neutral)");
+                reasons.Add($"📰 Neutral news ({positiveCount}+ / {negativeCount}- / {neutralCount}○)");
             }
 
             _logger.LogInformation(

@@ -14,6 +14,7 @@ import Divider from '@mui/material/Divider';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import SearchIcon from '@mui/icons-material/Search';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
+import HistoryIcon from '@mui/icons-material/History';
 import SettingsIcon from '@mui/icons-material/Settings';
 import SimulationIndicator from './SimulationIndicator';
 
@@ -31,6 +32,7 @@ export default function Layout({ children }: LayoutProps) {
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
         { text: 'Scanner', icon: <SearchIcon />, path: '/scanner' },
         { text: 'Account', icon: <AccountBalanceWalletIcon />, path: '/account' },
+        { text: 'Trade History', icon: <HistoryIcon />, path: '/history' },
         { text: 'Simulation', icon: <SettingsIcon />, path: '/simulation' },
     ];
 

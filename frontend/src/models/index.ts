@@ -60,3 +60,60 @@ export interface Account {
     createdAt: string;
     updatedAt: string;
 }
+
+export interface RiskCalculation {
+    symbol: string;
+    entryPrice: number;
+    stopLoss: number;
+    takeProfit: number;
+    investAmount: number;
+    positionSize: number;
+    riskAmount: number;
+    riskPercent: number;
+    rewardAmount: number;
+    riskRewardRatio: number;
+    isAllowed: boolean;
+    messages: string[];
+}
+
+export interface RiskSettings {
+    defaultRiskPercent: number;
+    maxRiskPercent: number;
+    minRiskRewardRatio: number;
+}
+
+export interface PaperTrade {
+    id: number;
+    symbol: string;
+    direction: 'LONG' | 'SHORT';
+    entryPrice: number;
+    stopLoss: number;
+    takeProfit: number;
+    quantity: number;
+    positionSize: number;
+    investAmount: number;
+    status: 'OPEN' | 'CLOSED_SL' | 'CLOSED_TP' | 'CLOSED_MANUAL';
+    confidence: number;
+    reasons: string[];
+    openedAt: string;
+    closedAt?: string;
+    exitPrice?: number;
+    pnL?: number;
+    pnLPercent?: number;
+    notes?: string;
+}
+
+export interface TradeStatistics {
+    totalTrades: number;
+    winningTrades: number;
+    losingTrades: number;
+    winRate: number;
+    totalPnL: number;
+    averageWin: number;
+    averageLoss: number;
+    averageR: number;
+    maxDrawdown: number;
+    profitFactor: number;
+    bestTrade?: PaperTrade;
+    worstTrade?: PaperTrade;
+}

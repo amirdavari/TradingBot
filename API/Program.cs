@@ -94,6 +94,11 @@ builder.Services.AddScoped<SignalService>();
 builder.Services.AddScoped<ScannerService>();
 builder.Services.AddScoped<SymbolValidationService>();
 builder.Services.AddScoped<AccountService>();
+builder.Services.AddScoped<RiskManagementService>();
+builder.Services.AddScoped<PaperTradeService>();
+
+// Register PaperTrade Monitor Background Service
+builder.Services.AddHostedService<PaperTradeMonitorService>();
 
 var app = builder.Build();
 

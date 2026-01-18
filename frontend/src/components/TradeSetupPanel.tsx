@@ -75,14 +75,15 @@ export default function TradeSetupPanel({
                     <Stack spacing={1.5}>
                         {/* Direction (Read-Only) */}
                         <Box>
-                            <Typography variant="caption" color="text.secondary" gutterBottom display="block">
-                                Direction:
-                            </Typography>
-                            <Chip 
-                                label={signal.direction}
-                                color={signal.direction === 'LONG' ? 'success' : signal.direction === 'SHORT' ? 'error' : 'default'}
-                                sx={{ width: '100%', fontWeight: 'bold' }}
-                            />
+                            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                <Typography variant="caption" color="text.secondary">Direction:</Typography>
+                                <Chip 
+                                    label={signal.direction}
+                                    color={signal.direction === 'LONG' ? 'success' : signal.direction === 'SHORT' ? 'error' : 'default'}
+                                    size="small"
+                                    sx={{ fontWeight: 'bold' }}
+                                />
+                            </Stack>
                         </Box>
 
                         {/* Entry Price (Read-Only) */}

@@ -391,47 +391,74 @@ Business-Logik darf nicht zwischen Live und Replay unterscheiden.
 ---
 
 ### 11.2 Risk & Position Management (neu)
-- [ ] RiskManagementService erstellen
-- [ ] Risiko pro Trade definieren (z. B. 1 % vom Account)
-- [ ] Positionsgröße berechnen basierend auf:
+- [x] RiskManagementService erstellen
+- [x] Risiko pro Trade definieren (z. B. 1 % vom Account)
+- [x] Positionsgröße berechnen basierend auf:
   - Account Balance
   - Risiko %
   - Entry / Stop Loss Abstand
-- [ ] Invest Amount dynamisch berechnen
-- [ ] Invest Amount read-only an Frontend liefern
-- [ ] Trade nur erlauben, wenn:
+- [x] Invest Amount dynamisch berechnen
+- [x] Invest Amount read-only an Frontend liefern
+- [x] Trade nur erlauben, wenn:
   - ausreichend Available Cash vorhanden
   - Risiko-Regeln erfüllt sind
 
 ---
 
 ### 11.3 PaperTrade Lifecycle
-- [ ] PaperTrade Entity erstellen
+- [x] PaperTrade Entity erweitern
   - Symbol
   - Direction
   - Entry / StopLoss / TakeProfit
-  - PositionSize
-  - InvestAmount
-  - Status (OPEN / CLOSED)
-  - OpenTime / CloseTime
-  - PnL
-- [ ] Trade automatisch eröffnen:
-  - wenn Signal gültig
-  - wenn Risk-Checks bestanden sind
-- [ ] Trade automatisch schließen:
-  - bei Stop Loss
-  - bei Take Profit
-  - anhand Replay-Zeit
-- [ ] PnL berechnen (realisiert & unrealisiert)
-- [ ] Account Balance beim Schließen aktualisieren
+  - PositionSize (decimal 18,4)
+  - InvestAmount (decimal 18,2)
+  - Status (OPEN / CLOSED_SL / CLOSED_TP / CLOSED_MANUAL)
+  - OpenedAt / ClosedAt
+  - PnL / PnLPercent
+- [x] PaperTradeService erstellen:
+  - OpenTradeAsync() - Öffnet Trade mit Risk-Validierung
+  - CloseTradeAsync() - Schließt Trade und berechnet PnL
+  - CheckOpenTradesAsync() - Überwacht alle offenen Trades
+  - CalculateUnrealizedPnLAsync() - Real-Time PnL für offene Trades
+- [x] PaperTradeMonitorService erstellen:
+  - Background Service (alle 5 Sekunden)
+  - Automatische Stop Loss Ausführung
+  - Automatische Take Profit Ausführung
+- [x] PaperTradesController erweitern:
+  - GET /api/papertrades/open
+  - GET /api/papertrades/history
+  - POST /api/papertrades/auto-execute
+  - POST /api/papertrades/{id}/close
+  - GET /api/papertrades/{id}/unrealized-pnl
+- [x] Trade automatisch eröffnen:
+  - Signal-Validierung über SignalService
+  - Risk-Check über RiskManagementService
+  - Capital-Allocation über AccountService
+- [x] Trade automatisch schließen:
+  - Stop Loss Detection (LONG: price ≤ SL, SHORT: price ≥ SL)
+  - Take Profit Detection (LONG: price ≥ TP, SHORT: price ≤ TP)
+  - Status entsprechend setzen (CLOSED_SL / CLOSED_TP)
+- [x] PnL berechnen (realisiert & unrealisiert)
+- [x] Account Balance beim Schließen aktualisieren:
+  - Capital freigeben
+  - PnL auf Balance anwenden
 
 ---
 
 ### 11.4 Open Trades (Dashboard)
-- [ ] Offene Trades aus DB laden
-- [ ] Open Trades im Dashboard anzeigen (global)
-- [ ] Unrealized PnL live berechnen (Replay)
-- [ ] Klick auf Trade fokussiert Chart
+- [x] PaperTrade Interface im Frontend definieren
+- [x] API Client für GET /api/papertrades/open erweitern
+- [x] useOpenTrades Hook erstellen (Auto-Refresh alle 5 Sekunden)
+- [x] OpenTradesPanel Komponente erstellen mit:
+  - Tabelle mit allen offenen Trades
+  - Symbol, Richtung (LONG/SHORT), Entry, Stop Loss, Take Profit
+  - Position Size, Invest Amount
+  - Unrealized PnL (Betrag + Prozent)
+  - Eröffnungszeitpunkt
+  - Click-Handler zum Fokussieren des Charts
+- [x] Dashboard Integration (ersetzt alte OpenPaperTradesPanel)
+- [x] Unrealized PnL Anzeige (basierend auf Backend-Berechnung)
+- [x] Klick auf Trade wechselt zum entsprechenden Symbol im Dashboard
 
 ---
 
@@ -464,5 +491,4 @@ Business-Logik darf nicht zwischen Live und Replay unterscheiden.
 - [ ] Logging hinzufügen
 - [ ] Basis Validierungen
 - [ ] Code aufräumen & kommentieren
-- [ ] MVP Scope überprüfen (keine Extras!)
-- [ ] README aktualisieren
+

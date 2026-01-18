@@ -5,6 +5,7 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import ScannerPage from './pages/ScannerPage';
 import AccountPage from './pages/AccountPage';
+import TradeHistoryPage from './pages/TradeHistoryPage';
 import SimulationControlPanel from './pages/SimulationControlPanel';
 
 const theme = createTheme({
@@ -29,6 +30,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/scanner" element={<ScannerPage />} />
             <Route path="/account" element={<AccountPage />} />
+            <Route path="/history" element={<TradeHistoryPage />} />
             <Route path="/simulation" element={<SimulationControlPanel />} />
             <Route path="/symbol/:symbol" element={<Dashboard />} />
           </Routes>

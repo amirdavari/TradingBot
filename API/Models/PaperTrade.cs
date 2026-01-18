@@ -37,9 +37,19 @@ public class PaperTrade
     public decimal TakeProfit { get; set; }
 
     /// <summary>
-    /// Number of shares/units traded.
+    /// Number of shares/units traded (legacy, use PositionSize instead).
     /// </summary>
     public int Quantity { get; set; }
+
+    /// <summary>
+    /// Position size as decimal (supports fractional shares if needed).
+    /// </summary>
+    public decimal PositionSize { get; set; }
+
+    /// <summary>
+    /// Total investment amount (PositionSize * EntryPrice).
+    /// </summary>
+    public decimal InvestAmount { get; set; }
 
     /// <summary>
     /// Confidence score (0-100) at trade entry.

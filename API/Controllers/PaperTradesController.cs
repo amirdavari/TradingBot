@@ -14,305 +14,195 @@ namespace API.Controllers;
 public class PaperTradesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly PaperTradeService _tradeService;
     private readonly SignalService _signalService;
-    private readonly IMarketDataProvider _marketDataProvider;
+    private readonly RiskManagementService _riskService;
     private readonly ILogger<PaperTradesController> _logger;
 
     public PaperTradesController(
         ApplicationDbContext context,
+        PaperTradeService tradeService,
         SignalService signalService,
-        IMarketDataProvider marketDataProvider,
+        RiskManagementService riskService,
         ILogger<PaperTradesController> logger)
     {
         _context = context;
+        _tradeService = tradeService;
         _signalService = signalService;
-        _marketDataProvider = marketDataProvider;
+        _riskService = riskService;
         _logger = logger;
     }
 
     /// <summary>
-    /// Create a new paper BUY trade (LONG position).
-    /// Backend calculates quantity, entry, stop-loss, and take-profit based on current signal.
-    /// </summary>
-    [HttpPost("buy")]
-    public async Task<ActionResult<PaperTradeResponse>> CreateBuyTrade([FromBody] CreatePaperTradeRequest request)
-    {
-        try
-        {
-            if (request.Direction != "LONG")
-            {
-                return BadRequest(new { error = "Buy trades must have direction 'LONG'" });
-            }
-
-            return await CreatePaperTrade(request);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating BUY paper trade for {Symbol}", request.Symbol);
-            return StatusCode(500, new { error = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// Create a new paper SELL trade (SHORT position).
-    /// Backend calculates quantity, entry, stop-loss, and take-profit based on current signal.
-    /// </summary>
-    [HttpPost("sell")]
-    public async Task<ActionResult<PaperTradeResponse>> CreateSellTrade([FromBody] CreatePaperTradeRequest request)
-    {
-        try
-        {
-            if (request.Direction != "SHORT")
-            {
-                return BadRequest(new { error = "Sell trades must have direction 'SHORT'" });
-            }
-
-            return await CreatePaperTrade(request);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating SELL paper trade for {Symbol}", request.Symbol);
-            return StatusCode(500, new { error = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// Get all open paper trades.
+    /// Gets all open trades.
     /// </summary>
     [HttpGet("open")]
-    public async Task<ActionResult<List<PaperTradeResponse>>> GetOpenTrades()
+    [ProducesResponseType(typeof(List<PaperTrade>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<PaperTrade>>> GetOpenTrades()
     {
         try
         {
-            var openTrades = await _context.PaperTrades
-                .Where(t => t.Status == "OPEN")
-                .OrderByDescending(t => t.OpenedAt)
-                .ToListAsync();
-
-            // Calculate current P&L for open trades
-            var responses = new List<PaperTradeResponse>();
-            foreach (var trade in openTrades)
-            {
-                var currentPrice = await GetCurrentPrice(trade.Symbol);
-                var (pnl, pnlPercent) = CalculatePnL(trade, currentPrice);
-
-                responses.Add(MapToResponse(trade, pnl, pnlPercent));
-            }
-
-            _logger.LogInformation("Retrieved {Count} open paper trades", responses.Count);
-            return Ok(responses);
+            var trades = await _tradeService.GetOpenTradesAsync();
+            return Ok(trades);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving open paper trades");
-            return StatusCode(500, new { error = ex.Message });
+            _logger.LogError(ex, "Error fetching open trades");
+            return StatusCode(500, "Failed to fetch open trades");
         }
     }
 
     /// <summary>
-    /// Get all paper trades (open and closed).
+    /// Gets trade history (closed trades).
     /// </summary>
-    [HttpGet]
-    public async Task<ActionResult<List<PaperTradeResponse>>> GetAllTrades()
+    [HttpGet("history")]
+    [ProducesResponseType(typeof(List<PaperTrade>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<PaperTrade>>> GetTradeHistory(
+        [FromQuery] int limit = 50)
     {
         try
         {
-            var trades = await _context.PaperTrades
-                .OrderByDescending(t => t.OpenedAt)
-                .ToListAsync();
-
-            var responses = new List<PaperTradeResponse>();
-            foreach (var trade in trades)
-            {
-                decimal? pnl = trade.PnL;
-                decimal? pnlPercent = trade.PnLPercent;
-
-                // Calculate current P&L for open trades
-                if (trade.Status == "OPEN")
-                {
-                    var currentPrice = await GetCurrentPrice(trade.Symbol);
-                    (pnl, pnlPercent) = CalculatePnL(trade, currentPrice);
-                }
-
-                responses.Add(MapToResponse(trade, pnl, pnlPercent));
-            }
-
-            return Ok(responses);
+            var trades = await _tradeService.GetTradeHistoryAsync(limit);
+            return Ok(trades);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving paper trades");
-            return StatusCode(500, new { error = ex.Message });
+            _logger.LogError(ex, "Error fetching trade history");
+            return StatusCode(500, "Failed to fetch trade history");
         }
     }
 
     /// <summary>
-    /// Close a paper trade manually.
+    /// Automatically opens a trade based on current signal and risk calculation.
+    /// </summary>
+    [HttpPost("auto-execute")]
+    [ProducesResponseType(typeof(PaperTrade), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PaperTrade>> AutoExecuteTrade(
+        [FromQuery] string symbol,
+        [FromQuery] int timeframe = 5,
+        [FromQuery] decimal? riskPercent = null)
+    {
+        if (string.IsNullOrWhiteSpace(symbol))
+            return BadRequest("Symbol is required");
+
+        try
+        {
+            // Get current signal
+            var signal = await _signalService.GenerateSignalAsync(symbol, timeframe);
+
+            if (signal.Direction == "NONE")
+            {
+                return BadRequest("No valid signal for this symbol");
+            }
+
+            // Calculate risk
+            var riskCalc = await _riskService.CalculateTradeRiskAsync(
+                symbol, signal.Entry, signal.StopLoss, signal.TakeProfit, riskPercent);
+
+            if (!riskCalc.IsAllowed)
+            {
+                return BadRequest(new { 
+                    error = "Trade not allowed",
+                    messages = riskCalc.Messages 
+                });
+            }
+
+            // Open trade
+            var result = await _tradeService.OpenTradeAsync(signal, riskCalc);
+
+            if (!result.Success)
+            {
+                return BadRequest(new { error = result.Message });
+            }
+
+            _logger.LogInformation("Auto-executed trade for {Symbol}: {Message}", symbol, result.Message);
+
+            return CreatedAtAction(nameof(GetOpenTrades), new { id = result.Trade!.Id }, result.Trade);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error auto-executing trade for {Symbol}", symbol);
+            return StatusCode(500, "Failed to execute trade");
+        }
+    }
+
+    /// <summary>
+    /// Manually closes an open trade.
     /// </summary>
     [HttpPost("{id}/close")]
-    public async Task<ActionResult<PaperTradeResponse>> CloseTrade(int id)
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> CloseTrade(
+        int id,
+        [FromQuery] decimal exitPrice,
+        [FromQuery] string reason = "CLOSED_MANUAL")
+    {
+        if (exitPrice <= 0)
+            return BadRequest("Exit price must be greater than zero");
+
+        try
+        {
+            var result = await _tradeService.CloseTradeAsync(id, exitPrice, reason);
+
+            if (!result.Success)
+            {
+                return NotFound(new { error = result.Message });
+            }
+
+            return Ok(new { message = result.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error closing trade #{Id}", id);
+            return StatusCode(500, "Failed to close trade");
+        }
+    }
+
+    /// <summary>
+    /// Gets unrealized PnL for an open trade.
+    /// </summary>
+    [HttpGet("{id}/unrealized-pnl")]
+    [ProducesResponseType(typeof(decimal), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<decimal>> GetUnrealizedPnL(int id)
     {
         try
         {
             var trade = await _context.PaperTrades.FindAsync(id);
+
             if (trade == null)
             {
-                return NotFound(new { error = $"Paper trade with ID {id} not found" });
+                return NotFound("Trade not found");
             }
 
-            if (trade.Status != "OPEN")
-            {
-                return BadRequest(new { error = "Trade is already closed" });
-            }
+            var pnl = await _tradeService.CalculateUnrealizedPnLAsync(trade);
 
-            var currentPrice = await GetCurrentPrice(trade.Symbol);
-            var (pnl, pnlPercent) = CalculatePnL(trade, currentPrice);
-
-            trade.Status = "CLOSED_MANUAL";
-            trade.ExitPrice = currentPrice;
-            trade.PnL = pnl;
-            trade.PnLPercent = pnlPercent;
-            trade.ClosedAt = DateTime.UtcNow;
-
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("Closed paper trade {Id} for {Symbol} at {Price} with P&L: {PnL} ({PnLPercent}%)", 
-                id, trade.Symbol, currentPrice, pnl, pnlPercent);
-
-            return Ok(MapToResponse(trade, pnl, pnlPercent));
+            return Ok(pnl);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error closing paper trade {Id}", id);
-            return StatusCode(500, new { error = ex.Message });
+            _logger.LogError(ex, "Error calculating unrealized PnL for trade #{Id}", id);
+            return StatusCode(500, "Failed to calculate unrealized PnL");
         }
     }
 
-    // ===== Private Helper Methods =====
-
-    private async Task<ActionResult<PaperTradeResponse>> CreatePaperTrade(CreatePaperTradeRequest request)
-    {
-        // Validate input
-        if (string.IsNullOrWhiteSpace(request.Symbol))
-        {
-            return BadRequest(new { error = "Symbol is required" });
-        }
-
-        if (request.InvestAmount <= 0)
-        {
-            return BadRequest(new { error = "Investment amount must be greater than 0" });
-        }
-
-        // Get current signal
-        var signal = await _signalService.GenerateSignalAsync(request.Symbol, request.Timeframe);
-        
-        if (signal.Direction == "NONE")
-        {
-            return BadRequest(new { error = "No trading signal available for this symbol" });
-        }
-
-        if (signal.Direction != request.Direction)
-        {
-            return BadRequest(new { error = $"Signal direction ({signal.Direction}) does not match request direction ({request.Direction})" });
-        }
-
-        // Calculate quantity based on invest amount and entry price
-        var quantity = (int)(request.InvestAmount / signal.Entry);
-        if (quantity <= 0)
-        {
-            return BadRequest(new { error = "Investment amount too low for at least 1 share" });
-        }
-
-        // Create paper trade
-        var paperTrade = new PaperTrade
-        {
-            Symbol = request.Symbol.ToUpper(),
-            Direction = request.Direction,
-            EntryPrice = signal.Entry,
-            StopLoss = signal.StopLoss,
-            TakeProfit = signal.TakeProfit,
-            Quantity = quantity,
-            Confidence = signal.Confidence,
-            Reasons = signal.Reasons,
-            Status = "OPEN",
-            OpenedAt = DateTime.UtcNow
-        };
-
-        _context.PaperTrades.Add(paperTrade);
-        await _context.SaveChangesAsync();
-
-        _logger.LogInformation("Created {Direction} paper trade {Id} for {Symbol}: {Quantity} shares @ {Price}", 
-            request.Direction, paperTrade.Id, request.Symbol, quantity, signal.Entry);
-
-        var response = MapToResponse(paperTrade, null, null);
-        response.InvestAmount = request.InvestAmount;
-
-        return CreatedAtAction(nameof(GetAllTrades), new { id = paperTrade.Id }, response);
-    }
-
-    private async Task<decimal> GetCurrentPrice(string symbol)
+    /// <summary>
+    /// Gets trade statistics.
+    /// </summary>
+    [HttpGet("statistics")]
+    [ProducesResponseType(typeof(TradeStatistics), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TradeStatistics>> GetStatistics()
     {
         try
         {
-            // Get the most recent candle to determine current price
-            var candles = await _marketDataProvider.GetCandlesAsync(symbol, 1, "1d");
-            if (candles.Count > 0)
-            {
-                return candles.Last().Close;
-            }
-
-            _logger.LogWarning("No candles found for {Symbol}, using 0 as current price", symbol);
-            return 0;
+            var stats = await _tradeService.GetTradeStatisticsAsync();
+            return Ok(stats);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting current price for {Symbol}", symbol);
-            return 0;
+            _logger.LogError(ex, "Error calculating trade statistics");
+            return StatusCode(500, "Failed to calculate statistics");
         }
-    }
-
-    private (decimal pnl, decimal pnlPercent) CalculatePnL(PaperTrade trade, decimal currentPrice)
-    {
-        if (currentPrice == 0)
-        {
-            return (0, 0);
-        }
-
-        decimal pnl;
-        decimal pnlPercent;
-
-        if (trade.Direction == "LONG")
-        {
-            pnl = (currentPrice - trade.EntryPrice) * trade.Quantity;
-            pnlPercent = ((currentPrice - trade.EntryPrice) / trade.EntryPrice) * 100;
-        }
-        else // SHORT
-        {
-            pnl = (trade.EntryPrice - currentPrice) * trade.Quantity;
-            pnlPercent = ((trade.EntryPrice - currentPrice) / trade.EntryPrice) * 100;
-        }
-
-        return (Math.Round(pnl, 2), Math.Round(pnlPercent, 2));
-    }
-
-    private PaperTradeResponse MapToResponse(PaperTrade trade, decimal? pnl, decimal? pnlPercent)
-    {
-        return new PaperTradeResponse
-        {
-            Id = trade.Id,
-            Symbol = trade.Symbol,
-            Direction = trade.Direction,
-            EntryPrice = trade.EntryPrice,
-            StopLoss = trade.StopLoss,
-            TakeProfit = trade.TakeProfit,
-            Quantity = trade.Quantity,
-            InvestAmount = trade.EntryPrice * trade.Quantity,
-            Confidence = trade.Confidence,
-            Reasons = trade.Reasons,
-            Status = trade.Status,
-            PnL = pnl,
-            PnLPercent = pnlPercent,
-            OpenedAt = trade.OpenedAt
-        };
     }
 }

@@ -5,7 +5,7 @@ import Grid from '@mui/material/Grid';
 import WatchlistPanel from '../components/WatchlistPanel';
 import ChartPanel from '../components/ChartPanel';
 import TradeSetupPanel from '../components/TradeSetupPanel';
-import OpenPaperTradesPanel from '../components/OpenPaperTradesPanel';
+import { OpenTradesPanel } from '../components/OpenTradesPanel';
 import { getCandles, getSignal, getNews } from '../api/tradingApi';
 import type { Candle, TradeSignal, NewsItem } from '../models';
 import { useReplayRefresh } from '../hooks/useReplayRefresh';
@@ -20,12 +20,6 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(false);
     const [newsLoading, setNewsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    // Mock data for open paper trades (TODO: fetch from API)
-    const openTrades = [
-        // { symbol: 'AAPL', direction: 'LONG' as const, profitLossPercent: 0.8 },
-        // { symbol: 'TSLA', direction: 'SHORT' as const, profitLossPercent: -0.3 },
-    ];
 
     // Get period based on timeframe (longer periods to ensure enough data)
     // Yahoo Finance limits: 1m=7days, 5m/15m=60days
@@ -196,11 +190,8 @@ export default function Dashboard() {
                 </Grid>
             </Grid>
 
-            {/* Open Paper Trades Panel */}
-            <OpenPaperTradesPanel 
-                trades={openTrades}
-                onTradeClick={handleTradeClick}
-            />
+            {/* Open Trades Panel */}
+            <OpenTradesPanel onTradeClick={handleTradeClick} />
         </Box>
     );
 }
