@@ -74,9 +74,41 @@ public class RiskController : ControllerBase
     /// </summary>
     [HttpGet("settings")]
     [ProducesResponseType(typeof(RiskSettings), StatusCodes.Status200OK)]
-    public ActionResult<RiskSettings> GetSettings()
+    public async Task<ActionResult<RiskSettings>> GetSettings()
     {
-        var settings = _riskService.GetRiskSettings();
+        var settings = await _riskService.GetRiskSettingsAsync();
         return Ok(settings);
+    }
+
+    /// <summary>
+    /// Updates risk management settings.
+    /// </summary>
+    [HttpPut("settings")]
+    [ProducesResponseType(typeof(RiskSettings), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<RiskSettings>> UpdateSettings([FromBody] RiskSettings settings)
+    {
+        if (settings.DefaultRiskPercent <= 0 || settings.DefaultRiskPercent > settings.MaxRiskPercent)
+            return BadRequest("Invalid default risk percent");
+
+        if (settings.MaxRiskPercent <= 0 || settings.MaxRiskPercent > 10)
+            return BadRequest("Max risk percent must be between 0 and 10");
+
+        if (settings.MinRiskRewardRatio < 0)
+            return BadRequest("Min risk/reward ratio must be positive");
+
+        if (settings.MaxCapitalPercent <= 0 || settings.MaxCapitalPercent > 100)
+            return BadRequest("Max capital percent must be between 0 and 100");
+
+        try
+        {
+            var updated = await _riskService.UpdateRiskSettingsAsync(settings);
+            return Ok(updated);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating risk settings");
+            return StatusCode(500, "Failed to update risk settings");
+        }
     }
 }

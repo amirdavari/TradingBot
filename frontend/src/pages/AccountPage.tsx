@@ -13,6 +13,7 @@ import MoneyIcon from '@mui/icons-material/Money';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorAlert from '../components/ErrorAlert';
+import RiskSettingsDialog from '../components/RiskSettingsDialog';
 import { getAccount, resetAccount } from '../api/tradingApi';
 import type { Account } from '../models';
 import { useReplayRefresh } from '../hooks/useReplayRefresh';
@@ -115,15 +116,18 @@ export default function AccountPage() {
                 <Typography variant="h4">
                     Account / Depot
                 </Typography>
-                <Button
-                    variant="outlined"
-                    color="error"
-                    startIcon={<RestartAltIcon />}
-                    onClick={handleReset}
-                    disabled={resetting}
-                >
-                    Reset Account
-                </Button>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                    <RiskSettingsDialog />
+                    <Button
+                        variant="outlined"
+                        color="error"
+                        startIcon={<RestartAltIcon />}
+                        onClick={handleReset}
+                        disabled={resetting}
+                    >
+                        Reset Account
+                    </Button>
+                </Box>
             </Box>
 
             {/* Main Account Cards */}

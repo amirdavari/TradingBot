@@ -74,12 +74,16 @@ export interface RiskCalculation {
     riskRewardRatio: number;
     isAllowed: boolean;
     messages: string[];
+    limitingFactor: string;
+    riskUtilization: number;
+    maxCapitalPercent: number;
 }
 
 export interface RiskSettings {
     defaultRiskPercent: number;
     maxRiskPercent: number;
     minRiskRewardRatio: number;
+    maxCapitalPercent: number;
 }
 
 export interface PaperTrade {

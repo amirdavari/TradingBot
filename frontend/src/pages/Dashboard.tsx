@@ -6,8 +6,8 @@ import WatchlistPanel from '../components/WatchlistPanel';
 import ChartPanel from '../components/ChartPanel';
 import TradeSetupPanel from '../components/TradeSetupPanel';
 import { OpenTradesPanel } from '../components/OpenTradesPanel';
-import { getCandles, getSignal, getNews } from '../api/tradingApi';
-import type { Candle, TradeSignal, NewsItem } from '../models';
+import { getCandles, getSignal, getNews, getAccount, createTrade } from '../api/tradingApi';
+import type { Candle, TradeSignal, NewsItem, Account, RiskCalculation } from '../models';
 import { useReplayRefresh } from '../hooks/useReplayRefresh';
 
 export default function Dashboard() {
@@ -17,6 +17,7 @@ export default function Dashboard() {
     const [candles, setCandles] = useState<Candle[]>([]);
     const [signal, setSignal] = useState<TradeSignal | null>(null);
     const [news, setNews] = useState<NewsItem[]>([]);
+    const [account, setAccount] = useState<Account | null>(null);
     const [loading, setLoading] = useState(false);
     const [newsLoading, setNewsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -71,6 +72,19 @@ export default function Dashboard() {
             default: return <SentimentNeutralIcon />;
         }
     };
+
+    // Fetch account data on mount
+    useEffect(() => {
+        const fetchAccount = async () => {
+            try {
+                const accountData = await getAccount();
+                setAccount(accountData);
+            } catch (err) {
+                console.error('Failed to fetch account:', err);
+            }
+        };
+        fetchAccount();
+    }, []);
 
     // Update selected symbol when URL param changes
     useEffect(() => {
@@ -134,16 +148,62 @@ export default function Dashboard() {
         setSelectedSymbol(symbol);
     };
 
-    const handleBuyTrade = (investAmount: number) => {
-        if (!signal || signal.direction !== 'LONG') return;
-        console.log('BUY Paper Trade:', { symbol: selectedSymbol, signal, investAmount });
-        // TODO: API call to create paper trade
+    const handleBuyTrade = async (signal: TradeSignal, riskCalc: RiskCalculation, riskPercent: number) => {
+        if (signal.direction !== 'LONG') return;
+        
+        try {
+            const trade = await createTrade(
+                signal.symbol,
+                'LONG',
+                signal.entry,
+                signal.stopLoss,
+                signal.takeProfit,
+                riskCalc.positionSize,
+                riskCalc.investAmount,
+                signal.confidence,
+                signal.reasons,
+                riskPercent
+            );
+            
+            console.log('Trade created:', trade);
+            
+            // Refresh account and open trades
+            await fetchAccount();
+            
+        } catch (error) {
+            console.error('Failed to create trade:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+            alert(`Fehler beim Erstellen des Trades: ${errorMessage}`);
+        }
     };
 
-    const handleSellTrade = (investAmount: number) => {
-        if (!signal || signal.direction !== 'SHORT') return;
-        console.log('SELL Paper Trade:', { symbol: selectedSymbol, signal, investAmount });
-        // TODO: API call to create paper trade
+    const handleSellTrade = async (signal: TradeSignal, riskCalc: RiskCalculation, riskPercent: number) => {
+        if (signal.direction !== 'SHORT') return;
+        
+        try {
+            const trade = await createTrade(
+                signal.symbol,
+                'SHORT',
+                signal.entry,
+                signal.stopLoss,
+                signal.takeProfit,
+                riskCalc.positionSize,
+                riskCalc.investAmount,
+                signal.confidence,
+                signal.reasons,
+                riskPercent
+            );
+            
+            console.log('Trade created:', trade);
+            
+            // Refresh account and open trades
+            await fetchAccount();
+            
+        } catch (error) {
+            console.error('Failed to create trade:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+            alert(`Fehler beim Erstellen des Trades: ${errorMessage}`);
+        }
     };
 
     const handleTradeClick = (symbol: string) => {
@@ -184,6 +244,7 @@ export default function Dashboard() {
                         signal={signal}
                         symbol={selectedSymbol}
                         timeframe={timeframe}
+                        availableCash={account?.availableCash ?? 0}
                         onBuyTrade={handleBuyTrade}
                         onSellTrade={handleSellTrade}
                     />

@@ -130,13 +130,6 @@ public class ScannerService
             var volatility = (atr / currentPrice) * 100; // as percentage
             var distanceToVWAP = ((currentPrice - vwap) / vwap) * 100; // as percentage
 
-            // Determine trend
-            var trend = "NONE";
-            if (currentPrice > vwap && volumeRatio > 0.5)
-                trend = "LONG";
-            else if (currentPrice < vwap && volumeRatio > 0.5)
-                trend = "SHORT";
-
             // Determine volume status
             var volumeStatus = volumeRatio switch
             {

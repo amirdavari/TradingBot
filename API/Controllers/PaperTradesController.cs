@@ -53,6 +53,69 @@ public class PaperTradesController : ControllerBase
     }
 
     /// <summary>
+    /// Creates a new paper trade with explicit parameters.
+    /// </summary>
+    [HttpPost]
+    [ProducesResponseType(typeof(PaperTrade), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PaperTrade>> CreateTrade([FromBody] CreateTradeRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Symbol))
+            return BadRequest("Symbol is required");
+
+        if (request.EntryPrice <= 0)
+            return BadRequest("Entry price must be greater than zero");
+
+        if (request.PositionSize <= 0)
+            return BadRequest("Position size must be greater than zero");
+
+        try
+        {
+            // Create signal from request
+            var signal = new TradeSignal
+            {
+                Symbol = request.Symbol,
+                Direction = request.Direction,
+                Entry = request.EntryPrice,
+                StopLoss = request.StopLoss,
+                TakeProfit = request.TakeProfit,
+                Confidence = request.Confidence,
+                Reasons = request.Reasons
+            };
+
+            // Create risk calculation from request
+            var riskCalc = new RiskCalculationDto
+            {
+                Symbol = request.Symbol,
+                EntryPrice = request.EntryPrice,
+                StopLoss = request.StopLoss,
+                TakeProfit = request.TakeProfit,
+                PositionSize = request.PositionSize,
+                InvestAmount = request.InvestAmount,
+                IsAllowed = true,
+                RiskPercent = request.RiskPercent
+            };
+
+            // Open trade
+            var result = await _tradeService.OpenTradeAsync(signal, riskCalc);
+
+            if (!result.Success)
+            {
+                return BadRequest(new { error = result.Message });
+            }
+
+            _logger.LogInformation("Created trade for {Symbol}: {Message}", request.Symbol, result.Message);
+
+            return CreatedAtAction(nameof(GetOpenTrades), new { id = result.Trade!.Id }, result.Trade);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating trade for {Symbol}", request.Symbol);
+            return StatusCode(500, "Failed to create trade");
+        }
+    }
+
+    /// <summary>
     /// Gets trade history (closed trades).
     /// </summary>
     [HttpGet("history")]

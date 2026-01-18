@@ -13,7 +13,7 @@ public class AccountService
     private readonly ApplicationDbContext _context;
     private readonly ILogger<AccountService> _logger;
     private const int ACCOUNT_ID = 1; // Single account for MVP
-    private const decimal DEFAULT_INITIAL_BALANCE = 10000m; // 10,000 EUR
+    private const decimal DEFAULT_INITIAL_BALANCE = 1000m; // 1,000 EUR
 
     public AccountService(
         ApplicationDbContext context,
@@ -79,14 +79,15 @@ public class AccountService
     {
         var account = await GetOrCreateAccountAsync();
 
-        account.Balance = account.InitialBalance;
-        account.Equity = account.InitialBalance;
-        account.AvailableCash = account.InitialBalance;
+        account.InitialBalance = DEFAULT_INITIAL_BALANCE;
+        account.Balance = DEFAULT_INITIAL_BALANCE;
+        account.Equity = DEFAULT_INITIAL_BALANCE;
+        account.AvailableCash = DEFAULT_INITIAL_BALANCE;
         account.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
         
-        _logger.LogInformation("Account reset to initial balance: {Balance} EUR", account.InitialBalance);
+        _logger.LogInformation("Account reset to initial balance: {Balance} EUR", DEFAULT_INITIAL_BALANCE);
     }
 
     /// <summary>

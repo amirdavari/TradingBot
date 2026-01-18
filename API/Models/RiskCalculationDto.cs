@@ -65,4 +65,19 @@ public class RiskCalculationDto
     /// Reasons why trade might not be allowed or important risk information.
     /// </summary>
     public List<string> Messages { get; set; } = new();
+
+    /// <summary>
+    /// Indicates what factor limits the position: RISK or CASH.
+    /// </summary>
+    public string LimitingFactor { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Percentage of target risk actually used (0-1).
+    /// </summary>
+    public decimal RiskUtilization { get; set; }
+
+    /// <summary>
+    /// Maximum capital allocation percentage per trade from settings.
+    /// </summary>
+    public decimal MaxCapitalPercent { get; set; }
 }

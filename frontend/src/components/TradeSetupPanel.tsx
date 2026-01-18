@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
@@ -10,59 +10,67 @@ import Stack from '@mui/material/Stack';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import LinearProgress from '@mui/material/LinearProgress';
-import type { TradeSignal } from '../models';
+import CircularProgress from '@mui/material/CircularProgress';
+import type { TradeSignal, RiskCalculation } from '../models';
+import { calculateRisk } from '../api/tradingApi';
 
 interface TradeSetupPanelProps {
     signal: TradeSignal | null;
     symbol: string;
     timeframe: number;
-    onBuyTrade: (investAmount: number) => void;
-    onSellTrade: (investAmount: number) => void;
+    availableCash: number;
+    onBuyTrade: (signal: TradeSignal, riskCalc: RiskCalculation, riskPercent: number) => void;
+    onSellTrade: (signal: TradeSignal, riskCalc: RiskCalculation, riskPercent: number) => void;
 }
 
 export default function TradeSetupPanel({ 
-    signal, 
-    symbol, 
-    timeframe, 
+    signal,
     onBuyTrade, 
     onSellTrade 
 }: TradeSetupPanelProps) {
-    const [investAmount, setInvestAmount] = useState<number>(1000);
+    const [riskCalc, setRiskCalc] = useState<RiskCalculation | null>(null);
+    const [loadingRisk, setLoadingRisk] = useState(false);
+    const [riskPercent, setRiskPercent] = useState<number>(1);
+
+    useEffect(() => {
+        if (!signal || signal.entry <= 0 || signal.stopLoss <= 0 || signal.takeProfit <= 0) {
+            setRiskCalc(null);
+            return;
+        }
+
+        const fetchRiskCalculation = async () => {
+            try {
+                setLoadingRisk(true);
+                const calc = await calculateRisk(
+                    signal.symbol,
+                    signal.entry,
+                    signal.stopLoss,
+                    signal.takeProfit,
+                    riskPercent
+                );
+                setRiskCalc(calc);
+            } catch (error) {
+                console.error('Failed to calculate risk:', error);
+                setRiskCalc(null);
+            } finally {
+                setLoadingRisk(false);
+            }
+        };
+
+        fetchRiskCalculation();
+    }, [signal, riskPercent]);
 
     const handleBuy = () => {
-        onBuyTrade(investAmount);
+        if (!signal || !riskCalc || !riskCalc.isAllowed) return;
+        onBuyTrade(signal, riskCalc, riskPercent);
     };
 
     const handleSell = () => {
-        onSellTrade(investAmount);
+        if (!signal || !riskCalc || !riskCalc.isAllowed) return;
+        onSellTrade(signal, riskCalc, riskPercent);
     };
 
-    // Calculate Risk/Reward Ratio: reward / risk (how much reward per unit of risk)
-    const riskReward = signal && signal.entry > 0 && signal.stopLoss > 0 && signal.takeProfit > 0
-        ? (() => {
-            const risk = Math.abs(signal.entry - signal.stopLoss);
-            const reward = Math.abs(signal.takeProfit - signal.entry);
-            const ratio = reward / risk;
-            return `1:${ratio.toFixed(2)}`;
-          })()
-        : 'N/A';
-
-    // Calculate estimated risk/reward in EUR
-    const calculateEstimatedRiskReward = () => {
-        if (!signal || signal.entry <= 0 || signal.stopLoss <= 0) {
-            return { risk: 0, reward: 0 };
-        }
-
-        const riskPercentage = Math.abs((signal.stopLoss - signal.entry) / signal.entry);
-        const rewardPercentage = Math.abs((signal.takeProfit - signal.entry) / signal.entry);
-
-        return {
-            risk: investAmount * riskPercentage,
-            reward: investAmount * rewardPercentage
-        };
-    };
-
-    const { risk, reward } = calculateEstimatedRiskReward();
+    const riskReward = riskCalc ? `1:${riskCalc.riskRewardRatio.toFixed(2)}` : 'N/A';
 
     return (
         <Paper sx={{ width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}>
@@ -153,36 +161,100 @@ export default function TradeSetupPanel({
 
                         <Divider />
 
-                        {/* Invest Amount (User Input) */}
+                        {/* Risk Percent Input */}
                         <Box>
-                            <TextField
-                                label="Invest Amount (€)"
-                                type="number"
-                                value={investAmount}
-                                onChange={(e) => setInvestAmount(Number(e.target.value))}
-                                size="small"
-                                fullWidth
-                                inputProps={{ min: 0, step: 100 }}
-                            />
-                        </Box>
-
-                        {/* Estimated Risk/Reward in EUR */}
-                        <Box>
-                            <Stack direction="row" justifyContent="space-between">
-                                <Box>
-                                    <Typography variant="caption" color="text.secondary">Est. Risk:</Typography>
-                                    <Typography variant="body1" color="error.main" fontWeight="bold">
-                                        -€{risk.toFixed(2)}
-                                    </Typography>
-                                </Box>
-                                <Box>
-                                    <Typography variant="caption" color="text.secondary">Est. Reward:</Typography>
-                                    <Typography variant="body1" color="success.main" fontWeight="bold">
-                                        +€{reward.toFixed(2)}
-                                    </Typography>
-                                </Box>
+                            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                <Typography variant="caption" color="text.secondary">
+                                    Risk per Trade:
+                                </Typography>
+                                <Stack direction="row" spacing={0.5} alignItems="center">
+                                    <TextField
+                                        type="number"
+                                        value={riskPercent}
+                                        onChange={(e) => setRiskPercent(Number(e.target.value))}
+                                        size="small"
+                                        sx={{ 
+                                            width: '60px',
+                                            '& input': {
+                                                textAlign: 'left',
+                                                fontWeight: 'bold',
+                                                fontSize: '0.9rem',
+                                                padding: '6px 8px'
+                                            }
+                                        }}
+                                        inputProps={{ min: 0.1, max: 5, step: 0.1 }}
+                                    />
+                                    <Typography variant="body2" fontWeight="bold" sx={{ minWidth: '15px' }}>%</Typography>
+                                </Stack>
                             </Stack>
                         </Box>
+
+                        {loadingRisk ? (
+                            <Box display="flex" justifyContent="center" py={2}>
+                                <CircularProgress size={24} />
+                            </Box>
+                        ) : riskCalc ? (
+                            <>
+                                {/* Position Size (Read-Only) */}
+                                <Box>
+                                    <Stack direction="row" justifyContent="space-between" alignItems="baseline">
+                                        <Typography variant="caption" color="text.secondary">Position Size:</Typography>
+                                        <Typography variant="body1" fontWeight="bold">{riskCalc.positionSize.toFixed(4)} shares</Typography>
+                                    </Stack>
+                                </Box>
+
+                                {/* Invest Amount (Read-Only) */}
+                                <Box>
+                                    <Stack direction="row" justifyContent="space-between" alignItems="baseline">
+                                        <Typography variant="caption" color="text.secondary">Invest Amount:</Typography>
+                                        <Typography variant="body1" fontWeight="bold">€{riskCalc.investAmount.toFixed(2)}</Typography>
+                                    </Stack>
+                                </Box>
+
+                                {/* Risk/Reward in EUR */}
+                                <Box>
+                                    <Stack direction="row" justifyContent="space-between">
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary">Risk Amount:</Typography>
+                                            <Typography variant="body1" color="error.main" fontWeight="bold">
+                                                -€{riskCalc.riskAmount.toFixed(2)}
+                                            </Typography>
+                                        </Box>
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary">Reward Amount:</Typography>
+                                            <Typography variant="body1" color="success.main" fontWeight="bold">
+                                                +€{riskCalc.rewardAmount.toFixed(2)}
+                                            </Typography>
+                                        </Box>
+                                    </Stack>
+                                </Box>
+
+
+                                {/* Cash-Limited Position Info */}
+                                {riskCalc.isAllowed && riskCalc.limitingFactor === 'CASH' && (
+                                    <Box sx={{ p: 1, bgcolor: 'warning.dark', borderRadius: 1 }}>
+                                        <Typography variant="caption" color="warning.light" display="block" fontWeight="bold">
+                                            💡 Cash-begrenzte Position
+                                        </Typography>
+                                        <Typography variant="caption" color="warning.light" display="block">
+                                            Risiko-Budget: {(riskCalc.riskUtilization * 100).toFixed(0)}% genutzt
+                                        </Typography>
+                                    </Box>
+                                )}
+
+                                {/* Capital-Limited Position Info */}
+                                {riskCalc.isAllowed && riskCalc.limitingFactor === 'CAPITAL' && (
+                                    <Box sx={{ p: 1, bgcolor: 'info.dark', borderRadius: 1 }}>
+                                        <Typography variant="caption" color="info.light" display="block" fontWeight="bold">
+                                            📊 Kapital-Limit aktiv
+                                        </Typography>
+                                        <Typography variant="caption" color="info.light" display="block">
+                                            Max. {riskCalc.maxCapitalPercent}% des Kapitals pro Trade
+                                        </Typography>
+                                    </Box>
+                                )}
+                            </>
+                        ) : null}
 
                         {/* Action Buttons */}
                         <Stack spacing={1}>
@@ -192,9 +264,14 @@ export default function TradeSetupPanel({
                                 fullWidth
                                 onClick={handleBuy}
                                 size="large"
-                                disabled={signal.direction !== 'LONG'}
+                                disabled={
+                                    signal.direction !== 'LONG' || 
+                                    !riskCalc || 
+                                    !riskCalc.isAllowed || 
+                                    loadingRisk
+                                }
                             >
-                                Kaufen
+                                Kaufen {riskCalc && `(€${riskCalc.investAmount.toFixed(0)})`}
                             </Button>
                             <Button 
                                 variant="contained" 
@@ -202,9 +279,14 @@ export default function TradeSetupPanel({
                                 fullWidth
                                 onClick={handleSell}
                                 size="large"
-                                disabled={signal.direction !== 'SHORT'}
+                                disabled={
+                                    signal.direction !== 'SHORT' || 
+                                    !riskCalc || 
+                                    !riskCalc.isAllowed || 
+                                    loadingRisk
+                                }
                             >
-                                Verkaufen
+                                Verkaufen {riskCalc && `(€${riskCalc.investAmount.toFixed(0)})`}
                             </Button>
                         </Stack>
                     </Stack>

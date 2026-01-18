@@ -1,6 +1,5 @@
 import { Box, Card, CardContent, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, IconButton } from '@mui/material';
 import { Refresh as RefreshIcon, TrendingUp, TrendingDown } from '@mui/icons-material';
-import type { PaperTrade } from '../models';
 import { useOpenTrades } from '../hooks/useOpenTrades';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorAlert from './ErrorAlert';
@@ -12,23 +11,24 @@ interface OpenTradesPanelProps {
 export function OpenTradesPanel({ onTradeClick }: OpenTradesPanelProps) {
     const { trades, isLoading, error, refresh } = useOpenTrades(5000); // Auto-refresh every 5 seconds
 
-    const calculateUnrealizedPnL = (trade: PaperTrade, currentPrice: number): { pnl: number; pnlPercent: number } => {
-        let pnl = 0;
-        let pnlPercent = 0;
-
-        if (trade.direction === 'LONG') {
-            pnl = (currentPrice - trade.entryPrice) * trade.quantity;
-            pnlPercent = ((currentPrice - trade.entryPrice) / trade.entryPrice) * 100;
-        } else { // SHORT
-            pnl = (trade.entryPrice - currentPrice) * trade.quantity;
-            pnlPercent = ((trade.entryPrice - currentPrice) / trade.entryPrice) * 100;
-        }
-
-        return {
-            pnl: Math.round(pnl * 100) / 100,
-            pnlPercent: Math.round(pnlPercent * 100) / 100
-        };
-    };
+    // Unrealized PnL is now calculated and provided by backend
+    // const calculateUnrealizedPnL = (trade: PaperTrade, currentPrice: number): { pnl: number; pnlPercent: number } => {
+    //     let pnl = 0;
+    //     let pnlPercent = 0;
+    // 
+    //     if (trade.direction === 'LONG') {
+    //         pnl = (currentPrice - trade.entryPrice) * trade.quantity;
+    //         pnlPercent = ((currentPrice - trade.entryPrice) / trade.entryPrice) * 100;
+    //     } else { // SHORT
+    //         pnl = (trade.entryPrice - currentPrice) * trade.quantity;
+    //         pnlPercent = ((trade.entryPrice - currentPrice) / trade.entryPrice) * 100;
+    //     }
+    // 
+    //     return {
+    //         pnl: Math.round(pnl * 100) / 100,
+    //         pnlPercent: Math.round(pnlPercent * 100) / 100
+    //     };
+    // };
 
     const formatCurrency = (value: number): string => {
         return new Intl.NumberFormat('de-DE', {
@@ -38,7 +38,8 @@ export function OpenTradesPanel({ onTradeClick }: OpenTradesPanelProps) {
         }).format(value);
     };
 
-    const formatPercent = (value: number): string => {
+    const formatPercent = (value: number | null | undefined): string => {
+        if (value === null || value === undefined) return '0.00%';
         return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
     };
 
@@ -92,14 +93,14 @@ export function OpenTradesPanel({ onTradeClick }: OpenTradesPanelProps) {
                             <TableHead>
                                 <TableRow>
                                     <TableCell>Symbol</TableCell>
-                                    <TableCell>Richtung</TableCell>
+                                    <TableCell>Direction</TableCell>
                                     <TableCell align="right">Entry</TableCell>
                                     <TableCell align="right">Stop Loss</TableCell>
                                     <TableCell align="right">Take Profit</TableCell>
                                     <TableCell align="right">Position</TableCell>
                                     <TableCell align="right">Invest</TableCell>
                                     <TableCell align="right">PnL</TableCell>
-                                    <TableCell>Eröffnet</TableCell>
+                                    <TableCell>Opened</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -151,7 +152,7 @@ export function OpenTradesPanel({ onTradeClick }: OpenTradesPanelProps) {
                                             </TableCell>
                                             <TableCell align="right">
                                                 <Typography variant="body2">
-                                                    {trade.quantity}
+                                                    {trade.positionSize.toFixed(4)}
                                                 </Typography>
                                             </TableCell>
                                             <TableCell align="right">

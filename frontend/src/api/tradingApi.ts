@@ -73,6 +73,16 @@ export async function getRiskSettings(): Promise<RiskSettings> {
     return fetchWithConfig<RiskSettings>('/api/risk/settings');
 }
 
+export async function updateRiskSettings(settings: RiskSettings): Promise<RiskSettings> {
+    return fetchWithConfig<RiskSettings>('/api/risk/settings', {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(settings)
+    });
+}
+
 // Paper Trading
 export async function getOpenTrades(): Promise<PaperTrade[]> {
     return fetchWithConfig<PaperTrade[]>('/api/papertrades/open');
@@ -98,6 +108,38 @@ export async function autoExecuteTrade(
     
     return fetchWithConfig<PaperTrade>(`/api/papertrades/auto-execute?${params.toString()}`, {
         method: 'POST'
+    });
+}
+
+export async function createTrade(
+    symbol: string,
+    direction: 'LONG' | 'SHORT',
+    entryPrice: number,
+    stopLoss: number,
+    takeProfit: number,
+    positionSize: number,
+    investAmount: number,
+    confidence: number,
+    reasons: string[],
+    riskPercent: number
+): Promise<PaperTrade> {
+    return fetchWithConfig<PaperTrade>('/api/papertrades', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            symbol,
+            direction,
+            entryPrice,
+            stopLoss,
+            takeProfit,
+            positionSize,
+            investAmount,
+            confidence,
+            reasons,
+            riskPercent
+        })
     });
 }
 

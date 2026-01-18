@@ -463,26 +463,35 @@ Business-Logik darf nicht zwischen Live und Replay unterscheiden.
 ---
 
 ### 11.5 Trade Historie & Statistik
-- [ ] Geschlossene Trades aus DB laden
-- [ ] Historie global anzeigen (separate Seite)
-- [ ] Statistik berechnen:
+- [x] Geschlossene Trades aus DB laden
+- [x] Historie global anzeigen (separate Seite)
+- [x] Statistik berechnen:
   - Winrate
   - Gesamt-PnL
   - Average R
   - Max Drawdown
-- [ ] Statistik & Historie im Frontend darstellen
+- [x] Statistik & Historie im Frontend darstellen
 
 ---
 
 ### 11.6 API & Frontend-Integration
-- [ ] GET /api/account
-- [ ] GET /api/papertrades/open
-- [ ] GET /api/papertrades/history
-- [ ] POST /api/papertrades/auto-execute
-- [ ] Trade Setup im Frontend zeigt:
-  - berechnetes Invest Amount
+- [x] GET /api/account ✅ (bereits vorhanden)
+- [x] GET /api/papertrades/open ✅ (bereits vorhanden)
+- [x] GET /api/papertrades/history ✅ (bereits vorhanden)
+- [x] POST /api/papertrades/auto-execute ✅ (bereits vorhanden)
+- [x] Trade Setup im Frontend zeigt:
+  - berechnetes Invest Amount (Risk Calculation)
   - berechnetes Risiko
   - read-only Parameter
+- [x] Vollständige Integration testen
+- [x] Trade History & Statistics in Frontend-Navigation verifizieren
+- [x] Error Handling für alle API-Calls überprüfen
+- [x] Risk Calculation API integriert (GET /api/risk/calculate)
+- [x] TradeSetupPanel verwendet Backend-berechnete Werte
+- [x] Risk Percent Slider (0.1% - 5%)
+- [x] Position Size, Invest Amount, Risk/Reward automatisch berechnet
+- [x] Trade Buttons zeigen berechneten Invest Amount
+- [x] Trade nur möglich wenn Risk Calculation erlaubt (isAllowed)
 
 ---
 

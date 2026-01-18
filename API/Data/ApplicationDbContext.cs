@@ -19,6 +19,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<TradeHistory> TradeHistory { get; set; }
     public DbSet<ReplayStateEntity> ReplayStates { get; set; }
     public DbSet<Account> Accounts { get; set; }
+    public DbSet<RiskSettingsEntity> RiskSettings { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -108,6 +109,18 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Equity).HasPrecision(18, 2).IsRequired();
             entity.Property(e => e.AvailableCash).HasPrecision(18, 2).IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
+            entity.Property(e => e.UpdatedAt).IsRequired();
+        });
+
+        // Configure RiskSettings (Singleton)
+        modelBuilder.Entity<RiskSettingsEntity>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedNever(); // Manually set to 1
+            entity.Property(e => e.DefaultRiskPercent).HasPrecision(5, 2).IsRequired();
+            entity.Property(e => e.MaxRiskPercent).HasPrecision(5, 2).IsRequired();
+            entity.Property(e => e.MinRiskRewardRatio).HasPrecision(5, 2).IsRequired();
+            entity.Property(e => e.MaxCapitalPercent).HasPrecision(5, 2).IsRequired();
             entity.Property(e => e.UpdatedAt).IsRequired();
         });
     }
