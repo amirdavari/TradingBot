@@ -212,7 +212,7 @@ export default function Dashboard() {
                 {/* Chart Area */}
                 <Grid size={7} sx={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                     <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', minHeight: 0, overflow: 'hidden' }}>
+                        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, overflow: 'hidden' }}>
                             {loading ? (
                                 <LoadingSpinner />
                             ) : error ? (
@@ -223,13 +223,6 @@ export default function Dashboard() {
                                 <Typography variant="h6" color="text.secondary">
                                     No data available
                                 </Typography>
-                            )}
-                            {signal && signal.direction !== 'NONE' && (
-                                <Chip
-                                    label={signal.direction}
-                                    color={signal.direction === 'LONG' ? 'success' : 'error'}
-                                    sx={{ position: 'absolute', top: 16, right: 16 }}
-                                />
                             )}
                         </Box>
 
