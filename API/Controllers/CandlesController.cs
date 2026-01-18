@@ -26,7 +26,7 @@ public class CandlesController : ControllerBase
     /// </summary>
     /// <param name="symbol">Stock symbol (e.g., "AAPL")</param>
     /// <param name="timeframe">Timeframe in minutes (default: 5). Supported: 1, 5, 15</param>
-    /// <param name="period">Time period (default: "1d"). Examples: "1d", "5d", "1mo"</param>
+    /// <param name="period">Time period (default: "1d"). Examples: "1d", "5d", "1mo". Yahoo limits: 1m=7d max, 5m/15m=60d max</param>
     [HttpGet("{symbol}")]
     [ProducesResponseType(typeof(List<Candle>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -34,7 +34,7 @@ public class CandlesController : ControllerBase
     public async Task<ActionResult<List<Candle>>> GetCandles(
         string symbol,
         [FromQuery] int timeframe = 5,
-        [FromQuery] string period = "1d")
+        [FromQuery] string period = "5d")
     {
         if (string.IsNullOrWhiteSpace(symbol))
             return BadRequest("Symbol is required");

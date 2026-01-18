@@ -18,6 +18,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<PaperTrade> PaperTrades { get; set; }
     public DbSet<TradeHistory> TradeHistory { get; set; }
     public DbSet<ReplayStateEntity> ReplayStates { get; set; }
+    public DbSet<Account> Accounts { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -93,6 +94,19 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Speed).IsRequired();
             entity.Property(e => e.IsRunning).IsRequired();
             entity.Property(e => e.Mode).IsRequired();
+        });
+
+        // Configure Account (Singleton)
+        modelBuilder.Entity<Account>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedNever(); // Manually set to 1 (single account for MVP)
+            entity.Property(e => e.InitialBalance).HasPrecision(18, 2).IsRequired();
+            entity.Property(e => e.Balance).HasPrecision(18, 2).IsRequired();
+            entity.Property(e => e.Equity).HasPrecision(18, 2).IsRequired();
+            entity.Property(e => e.AvailableCash).HasPrecision(18, 2).IsRequired();
+            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.Property(e => e.UpdatedAt).IsRequired();
         });
     }
 }

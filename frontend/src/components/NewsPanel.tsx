@@ -1,6 +1,12 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import Stack from '@mui/material/Stack';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import Chip from '@mui/material/Chip';
 import SentimentSatisfiedIcon from '@mui/icons-material/SentimentSatisfied';
 import SentimentNeutralIcon from '@mui/icons-material/SentimentNeutral';
 import SentimentDissatisfiedIcon from '@mui/icons-material/SentimentDissatisfied';
@@ -16,41 +22,94 @@ interface NewsPanelProps {
 export default function NewsPanel({ news, loading, symbol }: NewsPanelProps) {
     const getSentimentIcon = (sentiment: string) => {
         switch (sentiment) {
-            case 'positive': return <SentimentSatisfiedIcon color="success" />;
-            case 'neutral': return <SentimentNeutralIcon color="warning" />;
-            case 'negative': return <SentimentDissatisfiedIcon color="error" />;
-            default: return <SentimentNeutralIcon />;
+            case 'positive': return <SentimentSatisfiedIcon fontSize="small" color="success" />;
+            case 'neutral': return <SentimentNeutralIcon fontSize="small" color="warning" />;
+            case 'negative': return <SentimentDissatisfiedIcon fontSize="small" color="error" />;
+            default: return <SentimentNeutralIcon fontSize="small" />;
         }
     };
 
+    const getSentimentColor = (sentiment: string): "success" | "warning" | "error" | "default" => {
+        switch (sentiment) {
+            case 'positive': return 'success';
+            case 'neutral': return 'warning';
+            case 'negative': return 'error';
+            default: return 'default';
+        }
+    };
+
+    // Sort news by publishedAt descending (newest first)
+    const sortedNews = [...news].sort((a, b) => 
+        new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+    );
+
     return (
-        <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', flexShrink: 0, maxHeight: '200px', overflow: 'auto' }}>
+        <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', flexShrink: 0, maxHeight: '250px', overflow: 'auto' }}>
             <Typography variant="h6" gutterBottom>News</Typography>
             {loading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
                     <LoadingSpinner />
                 </Box>
             ) : news.length > 0 ? (
-                <Stack spacing={1}>
-                    {news.map((item, index) => (
-                        <Stack key={index} direction="row" spacing={1} alignItems="flex-start">
-                            {getSentimentIcon(item.sentiment)}
-                            <Box sx={{ flexGrow: 1 }}>
-                                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                                    {item.title}
-                                </Typography>
-                                {item.summary && (
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                                        {item.summary.length > 100 ? `${item.summary.substring(0, 100)}...` : item.summary}
-                                    </Typography>
-                                )}
-                                <Typography variant="caption" color="text.secondary">
-                                    {new Date(item.publishedAt).toLocaleString()} • {item.source}
-                                </Typography>
-                            </Box>
-                        </Stack>
-                    ))}
-                </Stack>
+                <TableContainer>
+                    <Table size="small" sx={{ minWidth: 650 }}>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell width="140px"><strong>Time</strong></TableCell>
+                                <TableCell width="100px"><strong>Sentiment</strong></TableCell>
+                                <TableCell><strong>Title</strong></TableCell>
+                                <TableCell width="100px"><strong>Source</strong></TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {sortedNews.map((item, index) => (
+                                <TableRow 
+                                    key={index}
+                                    hover
+                                    sx={{ 
+                                        '&:last-child td, &:last-child th': { border: 0 },
+                                        cursor: 'default'
+                                    }}
+                                >
+                                    <TableCell>
+                                        <Typography variant="caption">
+                                            {new Date(item.publishedAt).toLocaleString('de-DE', {
+                                                day: '2-digit',
+                                                month: '2-digit',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })}
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Chip 
+                                            icon={getSentimentIcon(item.sentiment)}
+                                            label={item.sentiment}
+                                            size="small"
+                                            color={getSentimentColor(item.sentiment)}
+                                            sx={{ textTransform: 'capitalize' }}
+                                        />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                                            {item.title}
+                                        </Typography>
+                                        {item.summary && (
+                                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                                                {item.summary.length > 120 ? `${item.summary.substring(0, 120)}...` : item.summary}
+                                            </Typography>
+                                        )}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Typography variant="caption" color="text.secondary">
+                                            {item.source}
+                                        </Typography>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
             ) : (
                 <Typography variant="body2" color="text.secondary">
                     No news available for {symbol}

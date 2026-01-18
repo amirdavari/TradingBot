@@ -26,7 +26,7 @@ public class SignalsController : ControllerBase
     /// </summary>
     /// <param name="symbol">Stock symbol (e.g., "AAPL")</param>
     /// <param name="timeframe">Timeframe in minutes (default: 5). Supported: 1, 5, 15</param>
-    /// <param name="period">Time period (default: "1d"). Examples: "1d", "5d", "1mo"</param>
+    /// <param name="period">Time period (default: "1d"). Examples: "1d", "5d", "1mo". Note: Need sufficient candles (>=20) for signal generation. Recommended: 1m=7d, 5m/15m=5d</param>
     [HttpGet("{symbol}")]
     [ProducesResponseType(typeof(TradeSignal), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -34,7 +34,7 @@ public class SignalsController : ControllerBase
     public async Task<ActionResult<TradeSignal>> GetSignal(
         string symbol,
         [FromQuery] int timeframe = 5,
-        [FromQuery] string period = "1d")
+        [FromQuery] string period = "5d")
     {
         if (string.IsNullOrWhiteSpace(symbol))
             return BadRequest("Symbol is required");

@@ -1,4 +1,4 @@
-import { type TradeSignal, type ScanResult, type Candle, type NewsItem } from '../models';
+import { type TradeSignal, type ScanResult, type Candle, type NewsItem, type Account } from '../models';
 import { API_CONFIG, fetchWithConfig } from './config';
 
 export async function getSignal(
@@ -36,4 +36,14 @@ export async function getNews(
     return fetchWithConfig<NewsItem[]>(
         API_CONFIG.endpoints.news(symbol, count)
     );
+}
+
+export async function getAccount(): Promise<Account> {
+    return fetchWithConfig<Account>('/api/account');
+}
+
+export async function resetAccount(): Promise<Account> {
+    return fetchWithConfig<Account>('/api/account/reset', {
+        method: 'POST'
+    });
 }

@@ -372,19 +372,91 @@ Business-Logik darf nicht zwischen Live und Replay unterscheiden.
 - [x] News-Logik unterscheidet NICHT zwischen Live und Replay
 
 
-## PHASE 11 – Paper-Trading (Pflicht)
- 
+## PHASE 11 – Paper-Trading & Depot (Pflicht)
+
+### 11.1 Depot / Account (neu)
+- [x] Account / Depot Entity erstellen
+  - Balance (Cash)
+  - Equity
+  - Available Cash
+  - Initial Balance (z. B. 10.000 €)
+- [x] Account initialisieren beim Start der Simulation
+- [x] Account-Daten persistent speichern
+- [x] Separate Depot-Seite im Frontend:
+  - Kontostand
+  - Freies Kapital
+  - Gebundenes Kapital
+  - Equity Verlauf (optional)
+
+---
+
+### 11.2 Risk & Position Management (neu)
+- [ ] RiskManagementService erstellen
+- [ ] Risiko pro Trade definieren (z. B. 1 % vom Account)
+- [ ] Positionsgröße berechnen basierend auf:
+  - Account Balance
+  - Risiko %
+  - Entry / Stop Loss Abstand
+- [ ] Invest Amount dynamisch berechnen
+- [ ] Invest Amount read-only an Frontend liefern
+- [ ] Trade nur erlauben, wenn:
+  - ausreichend Available Cash vorhanden
+  - Risiko-Regeln erfüllt sind
+
+---
+
+### 11.3 PaperTrade Lifecycle
 - [ ] PaperTrade Entity erstellen
-- [ ] Trades in Datenbank speichern
-- [ ] Paper-Trading öffnet/schließt Trades anhand Replay-Zeit
-- [ ] Trade schließen (SL / TP)
-- [ ] PnL berechnen
-- [ ] Trade Historie aus DB laden
+  - Symbol
+  - Direction
+  - Entry / StopLoss / TakeProfit
+  - PositionSize
+  - InvestAmount
+  - Status (OPEN / CLOSED)
+  - OpenTime / CloseTime
+  - PnL
+- [ ] Trade automatisch eröffnen:
+  - wenn Signal gültig
+  - wenn Risk-Checks bestanden sind
+- [ ] Trade automatisch schließen:
+  - bei Stop Loss
+  - bei Take Profit
+  - anhand Replay-Zeit
+- [ ] PnL berechnen (realisiert & unrealisiert)
+- [ ] Account Balance beim Schließen aktualisieren
+
+---
+
+### 11.4 Open Trades (Dashboard)
+- [ ] Offene Trades aus DB laden
+- [ ] Open Trades im Dashboard anzeigen (global)
+- [ ] Unrealized PnL live berechnen (Replay)
+- [ ] Klick auf Trade fokussiert Chart
+
+---
+
+### 11.5 Trade Historie & Statistik
+- [ ] Geschlossene Trades aus DB laden
+- [ ] Historie global anzeigen (separate Seite)
 - [ ] Statistik berechnen:
   - Winrate
   - Gesamt-PnL
+  - Average R
   - Max Drawdown
-- [ ] Statistik anzeigen im Frontend
+- [ ] Statistik & Historie im Frontend darstellen
+
+---
+
+### 11.6 API & Frontend-Integration
+- [ ] GET /api/account
+- [ ] GET /api/papertrades/open
+- [ ] GET /api/papertrades/history
+- [ ] POST /api/papertrades/auto-execute
+- [ ] Trade Setup im Frontend zeigt:
+  - berechnetes Invest Amount
+  - berechnetes Risiko
+  - read-only Parameter
+
 ---
 
 ## PHASE 12 – Qualität & Abschluss

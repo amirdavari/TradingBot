@@ -27,13 +27,14 @@ export default function Dashboard() {
         // { symbol: 'TSLA', direction: 'SHORT' as const, profitLossPercent: -0.3 },
     ];
 
-    // Get period based on timeframe (longer periods for smaller timeframes to ensure enough data in replay mode)
+    // Get period based on timeframe (longer periods to ensure enough data)
+    // Yahoo Finance limits: 1m=7days, 5m/15m=60days
     const getPeriodForTimeframe = (tf: number): string => {
         switch (tf) {
-            case 1: return '5d';  // 1-minute charts need 5 days
-            case 5: return '2d';  // 5-minute charts need 2 days
-            case 15: return '1d'; // 15-minute charts need 1 day
-            default: return '1d';
+            case 1: return '7d';   // 1-minute: Use max available (Yahoo limit)
+            case 5: return '5d';   // 5-minute: 5 days provides plenty of candles
+            case 15: return '5d';  // 15-minute: 5 days provides plenty of candles
+            default: return '5d';
         }
     };
 

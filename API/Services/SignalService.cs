@@ -34,7 +34,8 @@ public class SignalService
 
         if (candles.Count < 20)
         {
-            _logger.LogWarning("Insufficient data for {Symbol}. Need at least 20 candles.", symbol);
+            _logger.LogWarning("Insufficient data for {Symbol}. Got {Count} candles, need at least 20. Timeframe: {Timeframe}, Period: {Period}",
+                symbol, candles.Count, timeframe, period);
             return CreateNoSignal(symbol);
         }
 

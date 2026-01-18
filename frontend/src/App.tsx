@@ -4,6 +4,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import ScannerPage from './pages/ScannerPage';
+import AccountPage from './pages/AccountPage';
 import SimulationControlPanel from './pages/SimulationControlPanel';
 
 const theme = createTheme({
@@ -27,6 +28,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/scanner" element={<ScannerPage />} />
+            <Route path="/account" element={<AccountPage />} />
             <Route path="/simulation" element={<SimulationControlPanel />} />
             <Route path="/symbol/:symbol" element={<Dashboard />} />
           </Routes>

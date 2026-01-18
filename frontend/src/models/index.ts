@@ -50,3 +50,13 @@ export interface ReplayState {
     speed: number;
     isRunning: boolean;
 }
+
+export interface Account {
+    id: number;
+    initialBalance: number;
+    balance: number;
+    equity: number;
+    availableCash: number;
+    createdAt: string;
+    updatedAt: string;
+}

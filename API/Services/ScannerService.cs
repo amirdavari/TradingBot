@@ -75,13 +75,13 @@ public class ScannerService
             _logger.LogInformation("=== Scanning symbol: {Symbol} with timeframe {Timeframe} ===", symbol, timeframe);
             
             // Yahoo Finance limits: 1m=7days, 5m/15m=60days
-            // Use maximum available period within these limits
+            // Use appropriate periods to ensure sufficient candles (need at least 20)
             var period = timeframe switch
             {
-                1 => "7d",   // 1-minute: Yahoo Finance limit is 7 days
-                5 => "60d",  // 5-minute: Use 60 days for good historical coverage
-                15 => "60d", // 15-minute: Use 60 days for good historical coverage
-                _ => "60d"
+                1 => "7d",   // 1-minute: Yahoo Finance limit is 7 days (max ~420 candles/day)
+                5 => "5d",   // 5-minute: 5 days provides ~390 candles (78/day)
+                15 => "5d",  // 15-minute: 5 days provides ~130 candles (26/day)
+                _ => "5d"
             };
             
             _logger.LogInformation("Requesting period: {Period} for symbol {Symbol} (timeframe: {Timeframe}min)", period, symbol, timeframe);

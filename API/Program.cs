@@ -93,6 +93,7 @@ builder.Services.AddSingleton<ReplayClockService>(sp =>
 builder.Services.AddScoped<SignalService>();
 builder.Services.AddScoped<ScannerService>();
 builder.Services.AddScoped<SymbolValidationService>();
+builder.Services.AddScoped<AccountService>();
 
 var app = builder.Build();
 

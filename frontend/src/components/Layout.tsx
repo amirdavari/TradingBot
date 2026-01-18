@@ -13,6 +13,7 @@ import ListItemText from '@mui/material/ListItemText';
 import Divider from '@mui/material/Divider';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import SearchIcon from '@mui/icons-material/Search';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import SettingsIcon from '@mui/icons-material/Settings';
 import SimulationIndicator from './SimulationIndicator';
 
@@ -29,6 +30,7 @@ export default function Layout({ children }: LayoutProps) {
     const menuItems = [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
         { text: 'Scanner', icon: <SearchIcon />, path: '/scanner' },
+        { text: 'Account', icon: <AccountBalanceWalletIcon />, path: '/account' },
         { text: 'Simulation', icon: <SettingsIcon />, path: '/simulation' },
     ];
 
