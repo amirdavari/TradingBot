@@ -11,6 +11,7 @@ public class ScannerService
 {
     private readonly IMarketDataProvider _marketDataProvider;
     private readonly INewsProvider _newsProvider;
+    private readonly SignalService _signalService;
     private readonly ILogger<ScannerService> _logger;
 
     // Default symbols to scan (can be configured later)
@@ -23,10 +24,12 @@ public class ScannerService
     public ScannerService(
         IMarketDataProvider marketDataProvider, 
         INewsProvider newsProvider,
+        SignalService signalService,
         ILogger<ScannerService> logger)
     {
         _marketDataProvider = marketDataProvider;
         _newsProvider = newsProvider;
+        _signalService = signalService;
         _logger = logger;
     }
 
@@ -106,7 +109,7 @@ public class ScannerService
                     Trend = "NONE",
                     VolumeStatus = "LOW",
                     HasNews = false,
-                    Confidence = 0.0,
+                    Confidence = 0,
                     Reasons = new List<string>(),
                     HasError = true,
                     ErrorMessage = $"Insufficient data: Only {candles.Count} candles available (need at least 10)"
@@ -145,24 +148,26 @@ public class ScannerService
             // Check for news
             var hasNews = await CheckForNewsAsync(symbol);
 
-            // Calculate score and confidence
+            // Get signal to extract confidence and trend
+            var signal = await _signalService.GenerateSignalAsync(symbol, 5);
+
+            // Calculate score
             var score = CalculateScore(volumeRatio, (double)volatility, (double)Math.Abs(distanceToVWAP), hasNews);
-            var confidence = CalculateConfidence(volumeRatio, volatility);
 
             // Generate reasons
             var reasons = GenerateReasons(volumeRatio, (double)volatility, (double)Math.Abs(distanceToVWAP));
 
-            _logger.LogInformation("Successfully scanned {Symbol}: Score={Score}, Trend={Trend}, VolumeStatus={VolumeStatus}", 
-                symbol, score, trend, volumeStatus);
+            _logger.LogInformation("Successfully scanned {Symbol}: Score={Score}, Trend={Trend}, VolumeStatus={VolumeStatus}, Confidence={Confidence}", 
+                symbol, score, signal.Direction, volumeStatus, signal.Confidence);
 
             return new ScanResult
             {
                 Symbol = symbol,
                 Score = score,
-                Trend = trend,
+                Trend = signal.Direction,
                 VolumeStatus = volumeStatus,
                 HasNews = hasNews,
-                Confidence = confidence,
+                Confidence = signal.Confidence,
                 Reasons = reasons,
                 HasError = false,
                 ErrorMessage = null
@@ -180,7 +185,7 @@ public class ScannerService
                 Trend = "NONE",
                 VolumeStatus = "LOW",
                 HasNews = false,
-                Confidence = 0.0,
+                Confidence = 0,
                 Reasons = new List<string>(),
                 HasError = true,
                 ErrorMessage = $"Error: {ex.Message}"
@@ -220,21 +225,6 @@ public class ScannerService
             _logger.LogWarning(ex, "Failed to check news for {Symbol}", symbol);
             return false;
         }
-    }
-
-    private double CalculateConfidence(double volumeRatio, decimal volatility)
-    {
-        double confidence = 0.0;
-
-        if (volumeRatio > 1.5) confidence += 0.4;
-        else if (volumeRatio > 1.0) confidence += 0.3;
-        else if (volumeRatio > 0.5) confidence += 0.2;
-
-        if (volatility >= 1.5m && volatility <= 3.0m) confidence += 0.4;
-        else if (volatility >= 1.0m && volatility <= 4.0m) confidence += 0.3;
-        else if (volatility > 0.5m) confidence += 0.2;
-
-        return Math.Clamp(confidence, 0.0, 1.0);
     }
 
     private int CalculateScore(double volumeRatio, double volatility, double absDistance, bool hasNews)

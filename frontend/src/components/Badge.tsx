@@ -91,7 +91,7 @@ interface ConfidenceBadgeProps {
 }
 
 export function ConfidenceBadge({ confidence }: ConfidenceBadgeProps) {
-    const percentage = Math.round(confidence * 100);
+    const percentage = Math.round(confidence);
     const getColor = () => {
         if (percentage >= 70) return 'success';
         if (percentage >= 50) return 'warning';

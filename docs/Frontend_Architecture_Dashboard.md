@@ -7,6 +7,12 @@ in **Struktur, Logik und Interaktion**.
 Farben, Typografie und visuelles Design sind frei gestaltbar,
 solange die UX-Intention, Anordnung und Funktionalität erhalten bleiben.
 
+Regeln:
+- Struktur und Anordnung dürfen NICHT verändert werden
+- Keine Modals
+- Keine zusätzliche Features
+- Trade Setup belegt die komplette rechte Spalte
+
 Frontend wird **zuerst** implementiert.
 Backend folgt exakt den Bedürfnissen des Frontends.
 
@@ -29,20 +35,16 @@ Backend folgt exakt den Bedürfnissen des Frontends.
 ## Dashboard Layout (ASCII – funktionale Wahrheit)
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│ Header                                                       │
-│ Symbol | Timeframe | SIMULATION | Replay Time | Speed        │
-└──────────────────────────────────────────────────────────────┘
-
 ┌──────────────┬───────────────────────────┬───────────────────┐
 │ Watchlist    │ Chart + News              │ Trade Setup       │
 │ (links)      │ (mitte)                   │ (rechts, voll)    │
-│              │                           │                   │
-│ AAPL         │ Candles + VWAP            │ Signal (RO)       │
-│ TSLA         │ Entry / SL / TP Linien    │ Confidence %      │
-│ NVDA         │                           │ Reasons           │
-│              │ News unter dem Chart      │ Invest Amount €   │
+│              │ ┌─────────────────────┐   │                   │
+│ AAPL         │ │Symbol | Timeframe   │   │ Signal (RO)       │
+│ TSLA         │ └─────────────────────┘   │ Confidence %      │
+│ NVDA         │ Candles + VWAP            │ Reasons           │
+│              │ Entry / SL / TP Linien    │ Invest Amount €   │
 │              │                           │ BUY / SELL        │
+│              │ News unter dem Chart      │                   │
 └──────────────┴───────────────────────────┴───────────────────┘
 
 ┌──────────────────────────────────────────────────────────────┐
@@ -61,6 +63,7 @@ Komponenten
   - Klick setzt aktives Symbol
 
 ChartPanel
+  - Header mit Symbol-Eingabe und Timeframe-Auswahl
   - Candlestick Chart
   - VWAP (oder weitere Indikatoren)
   - Entry / Stop Loss / Take Profit Linien

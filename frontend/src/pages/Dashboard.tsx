@@ -1,28 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import Paper from '@mui/material/Paper';
-import TextField from '@mui/material/TextField';
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemButton from '@mui/material/ListItemButton';
-import ListItemText from '@mui/material/ListItemText';
-import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
-import Stack from '@mui/material/Stack';
-import SentimentSatisfiedIcon from '@mui/icons-material/SentimentSatisfied';
-import SentimentNeutralIcon from '@mui/icons-material/SentimentNeutral';
-import SentimentDissatisfiedIcon from '@mui/icons-material/SentimentDissatisfied';
-import CandlestickChart from '../charts/CandlestickChart';
+import WatchlistPanel from '../components/WatchlistPanel';
+import ChartPanel from '../components/ChartPanel';
+import TradeSetupPanel from '../components/TradeSetupPanel';
+import OpenPaperTradesPanel from '../components/OpenPaperTradesPanel';
 import { getCandles, getSignal, getNews } from '../api/tradingApi';
 import type { Candle, TradeSignal, NewsItem } from '../models';
-import LoadingSpinner from '../components/LoadingSpinner';
-import ErrorAlert from '../components/ErrorAlert';
-import { useWatchlist } from '../hooks/useWatchlist';
 import { useReplayRefresh } from '../hooks/useReplayRefresh';
 
 export default function Dashboard() {
@@ -36,7 +21,11 @@ export default function Dashboard() {
     const [newsLoading, setNewsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const { watchlist, loading: watchlistLoading } = useWatchlist();
+    // Mock data for open paper trades (TODO: fetch from API)
+    const openTrades = [
+        // { symbol: 'AAPL', direction: 'LONG' as const, profitLossPercent: 0.8 },
+        // { symbol: 'TSLA', direction: 'SHORT' as const, profitLossPercent: -0.3 },
+    ];
 
     // Get period based on timeframe (longer periods for smaller timeframes to ensure enough data in replay mode)
     const getPeriodForTimeframe = (tf: number): string => {
@@ -150,184 +139,67 @@ export default function Dashboard() {
         setSelectedSymbol(symbol);
     };
 
-    const riskReward = signal && signal.entry > 0 && signal.stopLoss > 0
-        ? ((signal.takeProfit - signal.entry) / (signal.entry - signal.stopLoss)).toFixed(1)
-        : 'N/A';
+    const handleBuyTrade = (investAmount: number) => {
+        if (!signal || signal.direction !== 'LONG') return;
+        console.log('BUY Paper Trade:', { symbol: selectedSymbol, signal, investAmount });
+        // TODO: API call to create paper trade
+    };
+
+    const handleSellTrade = (investAmount: number) => {
+        if (!signal || signal.direction !== 'SHORT') return;
+        console.log('SELL Paper Trade:', { symbol: selectedSymbol, signal, investAmount });
+        // TODO: API call to create paper trade
+    };
+
+    const handleTradeClick = (symbol: string) => {
+        setSelectedSymbol(symbol);
+    };
 
     return (
-        <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 0, p: 0 }}>
-            {/* Header */}
-            <Paper sx={{ p: 1.5, flexShrink: 0 }}>
-                <Stack direction="row" spacing={2} alignItems="center">
-                    <TextField
-                        placeholder="Search symbol..."
-                        size="small"
-                        value={selectedSymbol}
-                        onChange={(e) => setSelectedSymbol(e.target.value.toUpperCase())}
-                        sx={{ flexGrow: 1, maxWidth: 300 }}
-                    />
-                    <ToggleButtonGroup
-                        value={timeframe}
-                        exclusive
-                        onChange={handleTimeframeChange}
-                        size="small"
-                    >
-                        <ToggleButton value={1}>1m</ToggleButton>
-                        <ToggleButton value={5}>5m</ToggleButton>
-                        <ToggleButton value={15}>15m</ToggleButton>
-                    </ToggleButtonGroup>
-                </Stack>
-            </Paper>
-
+        <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 1, p: 0 }}>
             {/* Main Content */}
-            <Grid container spacing={0} sx={{ flexGrow: 1, minHeight: 0 }}>
-                {/* Watchlist */}
-                <Grid size={2}>
-                    <Paper sx={{ height: '100%', overflow: 'auto' }}>
-                        <Box sx={{ p: 2, pb: 1 }}>
-                            <Typography variant="h6">Watchlist</Typography>
-                        </Box>
-                        <Divider />
-                        {watchlistLoading ? (
-                            <Box sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
-                                <LoadingSpinner />
-                            </Box>
-                        ) : (
-                            <List dense>
-                                {watchlist.map((item) => (
-                                    <ListItem key={item.symbol} disablePadding>
-                                        <ListItemButton
-                                            selected={selectedSymbol === item.symbol}
-                                            onClick={() => handleSymbolChange(item.symbol)}
-                                        >
-                                            <ListItemText primary={item.symbol} />
-                                        </ListItemButton>
-                                    </ListItem>
-                                ))}
-                            </List>
-                        )}
-                    </Paper>
+            <Grid container spacing={1} sx={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
+                {/* Watchlist Panel */}
+                <Grid size={2} sx={{ height: '100%', display: 'flex' }}>
+                    <WatchlistPanel 
+                        selectedSymbol={selectedSymbol}
+                        onSymbolChange={handleSymbolChange}
+                    />
                 </Grid>
 
-                {/* Chart Area */}
-                <Grid size={7} sx={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                    <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, overflow: 'hidden' }}>
-                            {loading ? (
-                                <LoadingSpinner />
-                            ) : error ? (
-                                <ErrorAlert error={error} />
-                            ) : candles.length > 0 ? (
-                                <CandlestickChart candles={candles} signal={signal} />
-                            ) : (
-                                <Typography variant="h6" color="text.secondary">
-                                    No data available
-                                </Typography>
-                            )}
-                        </Box>
-
-                        {/* News Section */}
-                        <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', flexShrink: 0, maxHeight: '200px', overflow: 'auto', bgcolor: 'background.paper' }}>
-                            <Typography variant="h6" gutterBottom>News</Typography>
-                            {newsLoading ? (
-                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                                    <LoadingSpinner />
-                                </Box>
-                            ) : news.length > 0 ? (
-                                <Stack spacing={1}>
-                                    {news.map((item, index) => (
-                                        <Stack key={index} direction="row" spacing={1} alignItems="flex-start">
-                                            {getSentimentIcon(item.sentiment)}
-                                            <Box sx={{ flexGrow: 1 }}>
-                                                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                                                    {item.title}
-                                                </Typography>
-                                                {item.summary && (
-                                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                                                        {item.summary.length > 100 ? `${item.summary.substring(0, 100)}...` : item.summary}
-                                                    </Typography>
-                                                )}
-                                                <Typography variant="caption" color="text.secondary">
-                                                    {new Date(item.publishedAt).toLocaleString()} • {item.source}
-                                                </Typography>
-                                            </Box>
-                                        </Stack>
-                                    ))}
-                                </Stack>
-                            ) : (
-                                <Typography variant="body2" color="text.secondary">
-                                    No news available for {selectedSymbol}
-                                </Typography>
-                            )}
-                        </Box>
-                    </Paper>
+                {/* Chart + News Panel */}
+                <Grid size={7} sx={{ height: '100%', display: 'flex' }}>
+                    <ChartPanel
+                        candles={candles}
+                        signal={signal}
+                        news={news}
+                        loading={loading}
+                        newsLoading={newsLoading}
+                        error={error}
+                        symbol={selectedSymbol}
+                        timeframe={timeframe}
+                        onSymbolChange={handleSymbolChange}
+                        onTimeframeChange={(tf) => setTimeframe(tf)}
+                    />
                 </Grid>
 
-                {/* Trade Setup */}
-                <Grid size={3} sx={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                    <Paper sx={{ height: '100%', overflow: 'auto', p: 2, display: 'flex', flexDirection: 'column' }}>
-                        <Typography variant="h6" gutterBottom>Trade Setup</Typography>
-                        <Divider sx={{ mb: 2 }} />
-
-                        {signal ? (
-                            <Stack spacing={2}>
-                                <Box>
-                                    <Typography variant="caption" color="text.secondary">Direction:</Typography>
-                                    <ToggleButtonGroup
-                                        value={signal.direction}
-                                        exclusive
-                                        fullWidth
-                                        size="small"
-                                    >
-                                        <ToggleButton value="LONG">LONG</ToggleButton>
-                                        <ToggleButton value="SHORT">SHORT</ToggleButton>
-                                    </ToggleButtonGroup>
-                                </Box>
-
-                                <Box>
-                                    <Typography variant="caption" color="text.secondary">Entry Price:</Typography>
-                                    <Typography variant="h6">{signal.entry.toFixed(2)}</Typography>
-                                </Box>
-
-                                <Box>
-                                    <Typography variant="caption" color="text.secondary">Stop Loss:</Typography>
-                                    <Typography variant="h6">{signal.stopLoss.toFixed(2)}</Typography>
-                                </Box>
-
-                                <Box>
-                                    <Typography variant="caption" color="text.secondary">Take Profit:</Typography>
-                                    <Typography variant="h6">{signal.takeProfit.toFixed(2)}</Typography>
-                                </Box>
-
-                                <Box>
-                                    <Typography variant="caption" color="text.secondary">Risk/Reward:</Typography>
-                                    <Typography variant="h6">{riskReward}</Typography>
-                                </Box>
-
-                                <Box>
-                                    <Typography variant="caption" color="text.secondary">Confidence:</Typography>
-                                    <Typography variant="h6">{signal.confidence}%</Typography>
-                                </Box>
-
-                                <Box>
-                                    <Typography variant="caption" color="text.secondary">Reasons:</Typography>
-                                    <List dense>
-                                        {signal.reasons.map((reason, index) => (
-                                            <ListItem key={index} sx={{ py: 0.5, px: 0 }}>
-                                                <Typography variant="body2">• {reason}</Typography>
-                                            </ListItem>
-                                        ))}
-                                    </List>
-                                </Box>
-                            </Stack>
-                        ) : (
-                            <Typography variant="body2" color="text.secondary">
-                                No signal available
-                            </Typography>
-                        )}
-                    </Paper>
+                {/* Trade Setup Panel */}
+                <Grid size={3} sx={{ height: '100%', display: 'flex' }}>
+                    <TradeSetupPanel
+                        signal={signal}
+                        symbol={selectedSymbol}
+                        timeframe={timeframe}
+                        onBuyTrade={handleBuyTrade}
+                        onSellTrade={handleSellTrade}
+                    />
                 </Grid>
             </Grid>
+
+            {/* Open Paper Trades Panel */}
+            <OpenPaperTradesPanel 
+                trades={openTrades}
+                onTradeClick={handleTradeClick}
+            />
         </Box>
     );
 }

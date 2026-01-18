@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { createChart, CandlestickSeries, type IChartApi, type ISeriesApi, type CandlestickData, type Time } from 'lightweight-charts';
+import { createChart, CandlestickSeries, HistogramSeries, type IChartApi, type ISeriesApi, type CandlestickData, type HistogramData, type Time } from 'lightweight-charts';
 import type { Candle, TradeSignal } from '../models';
 import Box from '@mui/material/Box';
 
@@ -12,6 +12,7 @@ export default function CandlestickChart({ candles, signal }: CandlestickChartPr
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+    const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
 
     useEffect(() => {
         if (!chartContainerRef.current) return;
@@ -50,8 +51,26 @@ export default function CandlestickChart({ candles, signal }: CandlestickChartPr
             wickDownColor: '#ef5350',
         });
 
+        // Create volume histogram series
+        const volumeSeries = chart.addSeries(HistogramSeries, {
+            color: '#26a69a',
+            priceFormat: {
+                type: 'volume',
+            },
+            priceScaleId: '',
+        });
+
+        // Configure volume to use bottom 20% of chart
+        volumeSeries.priceScale().applyOptions({
+            scaleMargins: {
+                top: 0.8,
+                bottom: 0,
+            },
+        });
+
         chartRef.current = chart;
         candlestickSeriesRef.current = candlestickSeries;
+        volumeSeriesRef.current = volumeSeries;
 
         // Handle resize
         const handleResize = () => {
@@ -76,7 +95,7 @@ export default function CandlestickChart({ candles, signal }: CandlestickChartPr
 
     // Update candle data
     useEffect(() => {
-        if (!candlestickSeriesRef.current || !candles.length || !chartRef.current) return;
+        if (!candlestickSeriesRef.current || !volumeSeriesRef.current || !candles.length || !chartRef.current) return;
 
         // Save current zoom/visible range before updating data
         const timeScale = chartRef.current.timeScale();
@@ -91,8 +110,16 @@ export default function CandlestickChart({ candles, signal }: CandlestickChartPr
             close: candle.close,
         }));
 
+        // Convert candles to volume data (colored by price direction)
+        const volumeData: HistogramData[] = candles.map((candle) => ({
+            time: new Date(candle.time).getTime() / 1000 as Time,
+            value: candle.volume,
+            color: candle.close >= candle.open ? '#26a69a80' : '#ef535080',
+        }));
+
         // Use setData to replace all data (handles additions and updates)
         candlestickSeriesRef.current.setData(chartData);
+        volumeSeriesRef.current.setData(volumeData);
         
         // Restore zoom/visible range if it was set
         if (visibleRange) {

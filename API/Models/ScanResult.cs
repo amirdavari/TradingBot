@@ -31,9 +31,9 @@ public class ScanResult
     public bool HasNews { get; set; }
 
     /// <summary>
-    /// Confidence score from signal (0.0 to 1.0).
+    /// Confidence score (0-100).
     /// </summary>
-    public double Confidence { get; set; }
+    public int Confidence { get; set; }
 
     /// <summary>
     /// List of reasons why this stock was scored this way (max 3 for MVP).
