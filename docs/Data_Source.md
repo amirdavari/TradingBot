@@ -26,7 +26,6 @@ Nicht verwendet:
 - Realtime Trading
 - Orderbuch-Daten
 - Bid/Ask-Spreads
-
 ---
 
 ## 2. Nachrichten (News)
