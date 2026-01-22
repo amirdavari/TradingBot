@@ -22,7 +22,7 @@ public class ScannerService
     ];
 
     public ScannerService(
-        IMarketDataProvider marketDataProvider, 
+        IMarketDataProvider marketDataProvider,
         INewsProvider newsProvider,
         SignalService signalService,
         ILogger<ScannerService> logger)
@@ -58,7 +58,7 @@ public class ScannerService
             _logger.LogWarning("{ErrorCount} symbols had errors during scanning", errorCount);
         }
 
-        _logger.LogInformation("Scan completed. Found {Count} candidates out of {Total} symbols ({Errors} with errors)", 
+        _logger.LogInformation("Scan completed. Found {Count} candidates out of {Total} symbols ({Errors} with errors)",
             results.Count, symbols.Length, errorCount);
 
         return results;
@@ -73,7 +73,7 @@ public class ScannerService
         try
         {
             _logger.LogInformation("=== Scanning symbol: {Symbol} with timeframe {Timeframe} ===", symbol, timeframe);
-            
+
             // Yahoo Finance limits: 1m=7days, 5m/15m=60days
             // Use appropriate periods to ensure sufficient candles (need at least 20)
             var period = timeframe switch
@@ -83,24 +83,24 @@ public class ScannerService
                 15 => "5d",  // 15-minute: 5 days provides ~130 candles (26/day)
                 _ => "5d"
             };
-            
+
             _logger.LogInformation("Requesting period: {Period} for symbol {Symbol} (timeframe: {Timeframe}min)", period, symbol, timeframe);
-            
+
             var candles = await _marketDataProvider.GetCandlesAsync(symbol, timeframe, period);
 
             _logger.LogInformation("Retrieved {Count} candles for {Symbol}", candles.Count, symbol);
-            
+
             if (candles.Count > 0)
             {
-                _logger.LogInformation("First candle: {FirstTime}, Last candle: {LastTime}", 
+                _logger.LogInformation("First candle: {FirstTime}, Last candle: {LastTime}",
                     candles.First().Time, candles.Last().Time);
             }
 
             if (candles.Count < 10)
             {
-                _logger.LogWarning("!!! INSUFFICIENT DATA for {Symbol}. Got {Count} candles, need at least 10 !!!", 
+                _logger.LogWarning("!!! INSUFFICIENT DATA for {Symbol}. Got {Count} candles, need at least 10 !!!",
                     symbol, candles.Count);
-                
+
                 // Return error result instead of null to show symbol in UI with error
                 return new ScanResult
                 {
@@ -150,7 +150,7 @@ public class ScannerService
             // Generate reasons
             var reasons = GenerateReasons(volumeRatio, (double)volatility, (double)Math.Abs(distanceToVWAP));
 
-            _logger.LogInformation("Successfully scanned {Symbol}: Score={Score}, Trend={Trend}, VolumeStatus={VolumeStatus}, Confidence={Confidence}", 
+            _logger.LogInformation("Successfully scanned {Symbol}: Score={Score}, Trend={Trend}, VolumeStatus={VolumeStatus}, Confidence={Confidence}",
                 symbol, score, signal.Direction, volumeStatus, signal.Confidence);
 
             return new ScanResult
@@ -169,7 +169,7 @@ public class ScannerService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error scanning symbol {Symbol}. Exception: {Message}", symbol, ex.Message);
-            
+
             // Return error result instead of null
             return new ScanResult
             {
@@ -194,13 +194,13 @@ public class ScannerService
         try
         {
             _logger.LogInformation("Checking news for {Symbol}...", symbol);
-            
+
             // Use Task.WhenAny for timeout without CancellationToken
             var newsTask = _newsProvider.GetNewsAsync(symbol, 5);
             var timeoutTask = Task.Delay(5000);
-            
+
             var completedTask = await Task.WhenAny(newsTask, timeoutTask);
-            
+
             if (completedTask == newsTask)
             {
                 var news = await newsTask;
@@ -224,18 +224,28 @@ public class ScannerService
     {
         int score = 0;
 
+        // Volume scoring (0-35 points) - VERBESSERT
         if (volumeRatio > 2.0) score += 35;
-        else if (volumeRatio > 1.5) score += 25;
-        else if (volumeRatio > 1.2) score += 15;
+        else if (volumeRatio > 1.5) score += 30;
+        else if (volumeRatio > 1.2) score += 25;
+        else if (volumeRatio > 0.8) score += 15;  // ✅ Normales Volumen
+        else score += 5;  // ✅ Niedriges Volumen
 
-        if (volatility >= 1.5 && volatility <= 3.0) score += 30;
-        else if (volatility >= 1.0 && volatility <= 4.0) score += 20;
-        else if (volatility > 0.5) score += 10;
+        // Volatility scoring (0-30 points) - VERBESSERT
+        if (volatility >= 1.0 && volatility <= 3.0) score += 30;  // ✅ Ideal
+        else if (volatility >= 0.5 && volatility <= 1.0) score += 25;  // ✅ Gut
+        else if (volatility >= 0.3 && volatility <= 5.0) score += 20;  // ✅ Akzeptabel
+        else if (volatility > 0.1) score += 10;  // ✅ Niedrig aber handelbar
+        else score += 5;
 
-        if (absDistance <= 0.5) score += 25;
-        else if (absDistance <= 1.0) score += 20;
-        else if (absDistance <= 2.0) score += 10;
+        // VWAP Distance (0-25 points) - VERBESSERT
+        if (absDistance <= 1.0) score += 25;  // ✅ Sehr nah
+        else if (absDistance <= 2.0) score += 20;  // ✅ Nah
+        else if (absDistance <= 3.0) score += 15;  // ✅ Moderat
+        else if (absDistance <= 5.0) score += 10;  // ✅ Weit aber ok
+        else score += 5;
 
+        // News bonus
         if (hasNews) score += 10;
 
         return Math.Clamp(score, 0, 100);

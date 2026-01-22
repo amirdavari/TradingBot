@@ -22,6 +22,15 @@ export default function Dashboard() {
     const [newsLoading, setNewsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    console.log('[Dashboard] State:', {
+        selectedSymbol,
+        timeframe,
+        candleCount: candles.length,
+        loading,
+        error,
+        hasSignal: !!signal
+    });
+
     // Get period based on timeframe (longer periods to ensure enough data)
     // Yahoo Finance limits: 1m=7days, 5m/15m=60days
     const getPeriodForTimeframe = (tf: number): string => {
@@ -42,13 +51,13 @@ export default function Dashboard() {
                     getCandles(selectedSymbol, timeframe, period),
                     getSignal(selectedSymbol, timeframe)
                 ]);
-                
+
                 // Always create a new array reference to trigger React updates
                 // This ensures the chart updates even if candle count is the same
                 setCandles([...candlesData]);
-                setSignal({...signalData});
+                setSignal({ ...signalData });
                 setError(null); // Clear any previous errors on successful refresh
-                
+
                 console.log(`Refreshed data: ${candlesData.length} candles, last candle: ${candlesData[candlesData.length - 1]?.time}`);
             } catch (err) {
                 const errorMessage = err instanceof Error ? err.message : 'Failed to refresh data';
@@ -63,6 +72,19 @@ export default function Dashboard() {
 
     // Auto-refresh during replay simulation (every 5 seconds)
     useReplayRefresh(refreshData, 5000);
+
+    // Auto-refresh in live mode (every 10 seconds)
+    useEffect(() => {
+        const interval = setInterval(() => {
+            console.log('[Dashboard] Live mode auto-refresh triggered');
+            refreshData();
+        }, 10000); // 10 seconds
+
+        return () => {
+            console.log('[Dashboard] Cleanup live mode auto-refresh interval');
+            clearInterval(interval);
+        };
+    }, [selectedSymbol, timeframe]); // Re-create interval when symbol/timeframe changes
 
     // Fetch account data
     const fetchAccount = async () => {
@@ -89,19 +111,22 @@ export default function Dashboard() {
     // Fetch data when symbol or timeframe changes
     useEffect(() => {
         const fetchData = async () => {
+            console.log(`[Dashboard] Fetching data for ${selectedSymbol}, timeframe: ${timeframe}`);
             setLoading(true);
             setError(null);
             try {
                 const period = getPeriodForTimeframe(timeframe);
+                console.log(`[Dashboard] Using period: ${period}`);
                 const [candlesData, signalData] = await Promise.all([
                     getCandles(selectedSymbol, timeframe, period),
                     getSignal(selectedSymbol, timeframe)
                 ]);
+                console.log(`[Dashboard] Received ${candlesData.length} candles for ${selectedSymbol}`);
                 setCandles(candlesData);
                 setSignal(signalData);
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to fetch data');
-                console.error('Error fetching data:', err);
+                console.error('[Dashboard] Error fetching data:', err);
             } finally {
                 setLoading(false);
             }
@@ -143,7 +168,7 @@ export default function Dashboard() {
 
     const handleBuyTrade = async (signal: TradeSignal, riskCalc: RiskCalculation, riskPercent: number) => {
         if (signal.direction !== 'LONG') return;
-        
+
         try {
             const trade = await createTrade(
                 signal.symbol,
@@ -157,12 +182,12 @@ export default function Dashboard() {
                 signal.reasons,
                 riskPercent
             );
-            
+
             console.log('Trade created:', trade);
-            
+
             // Refresh account and open trades
             await fetchAccount();
-            
+
         } catch (error) {
             console.error('Failed to create trade:', error);
             const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
@@ -172,7 +197,7 @@ export default function Dashboard() {
 
     const handleSellTrade = async (signal: TradeSignal, riskCalc: RiskCalculation, riskPercent: number) => {
         if (signal.direction !== 'SHORT') return;
-        
+
         try {
             const trade = await createTrade(
                 signal.symbol,
@@ -186,12 +211,12 @@ export default function Dashboard() {
                 signal.reasons,
                 riskPercent
             );
-            
+
             console.log('Trade created:', trade);
-            
+
             // Refresh account and open trades
             await fetchAccount();
-            
+
         } catch (error) {
             console.error('Failed to create trade:', error);
             const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
@@ -209,7 +234,7 @@ export default function Dashboard() {
             <Grid container spacing={1} sx={{ flexShrink: 0, height: '65vh', minHeight: '500px' }}>
                 {/* Watchlist Panel */}
                 <Grid size={2} sx={{ height: '100%', display: 'flex' }}>
-                    <WatchlistPanel 
+                    <WatchlistPanel
                         selectedSymbol={selectedSymbol}
                         onSymbolChange={handleSymbolChange}
                     />

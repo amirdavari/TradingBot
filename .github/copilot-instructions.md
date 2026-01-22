@@ -131,3 +131,12 @@ See [Data_Source.md](docs/Data_Source.md) for constraints and provider abstracti
 ## MCP Helpers
 - Use `microsoft-mcp` for .NET/EF Core best practices
 - Use `mui-mcp` for Material UI patterns in frontend
+
+## Documentation
+- Backend architecture: [Backend_architektur.md](docs/Backend_architektur.md) 
+- Frontend architecture: [Frontend_Architektur.md](docs/Frontend_Architektur.md)
+- Database migration strategy: [DB_Migration_Strategy.md](docs/DB_Migration_Strategy.md)
+- Data source details: [Data_Source.md](docs/Data_Source.md)   
+- Replay persistence: [Phase_10.7_Persistence_Implementation.md](docs/Phase_10.7_Persistence_Implementation.md)
+- Project overview: [Project_Overview.md](docs/Project_Overview.md)
+- Dashboard layout: [Frontend_Architecture_Dashboard.md](docs/Frontend_Architecture_Dashboard.md)

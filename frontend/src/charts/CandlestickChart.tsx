@@ -13,6 +13,7 @@ export default function CandlestickChart({ candles, signal }: CandlestickChartPr
     const chartRef = useRef<IChartApi | null>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
     const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
+    const lastCandleCountRef = useRef<number>(0);
 
     useEffect(() => {
         if (!chartContainerRef.current) return;
@@ -97,9 +98,10 @@ export default function CandlestickChart({ candles, signal }: CandlestickChartPr
     useEffect(() => {
         if (!candlestickSeriesRef.current || !volumeSeriesRef.current || !candles.length || !chartRef.current) return;
 
-        // Save current zoom/visible range before updating data
         const timeScale = chartRef.current.timeScale();
-        const visibleRange = timeScale.getVisibleRange();
+        const currentCandleCount = candles.length;
+        const hadCandles = lastCandleCountRef.current > 0;
+        const newCandlesAdded = currentCandleCount > lastCandleCountRef.current;
 
         // Convert candles to lightweight-charts format
         const chartData: CandlestickData[] = candles.map((candle) => ({
@@ -120,15 +122,16 @@ export default function CandlestickChart({ candles, signal }: CandlestickChartPr
         // Use setData to replace all data (handles additions and updates)
         candlestickSeriesRef.current.setData(chartData);
         volumeSeriesRef.current.setData(volumeData);
-        
-        // Restore zoom/visible range if it was set
-        if (visibleRange) {
-            // Only fit content if it's the first load (no previous visible range)
-            timeScale.setVisibleRange(visibleRange);
-        } else {
-            // First load: fit content to view
+
+        // Auto-scroll to latest data when new candles are added
+        // or on first load
+        if (!hadCandles || newCandlesAdded) {
             timeScale.fitContent();
         }
+        // Otherwise, keep the user's current zoom/scroll position
+
+        // Update the last candle count
+        lastCandleCountRef.current = currentCandleCount;
     }, [candles]);
 
     // Add signal lines (Entry, Stop-Loss, Take-Profit)
@@ -138,7 +141,7 @@ export default function CandlestickChart({ candles, signal }: CandlestickChartPr
 
         // Create a unique key based on signal values to track if signal actually changed
         const signalKey = `${signal.entry}-${signal.stopLoss}-${signal.takeProfit}`;
-        
+
         // Remove all existing price lines by recreating the series
         // This is the cleanest way to remove all price lines in lightweight-charts
         const priceLines: any[] = [];

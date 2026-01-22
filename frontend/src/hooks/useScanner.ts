@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { ScanResult } from '../models';
 import { scanStocks } from '../api/tradingApi';
 
-export function useScanner(symbols: string[], enabled: boolean = true) {
+export function useScanner(symbols: string[], enabled: boolean = true, refreshInterval?: number) {
     const [scanResults, setScanResults] = useState<ScanResult[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -11,6 +11,7 @@ export function useScanner(symbols: string[], enabled: boolean = true) {
     const lastSymbolsKey = useRef<string>('');
     const isScanning = useRef<boolean>(false);
     const hasInitialScan = useRef<boolean>(false);
+    const intervalRef = useRef<number | null>(null);
 
     useEffect(() => {
         const symbolsKey = symbols.join(',');
@@ -18,6 +19,11 @@ export function useScanner(symbols: string[], enabled: boolean = true) {
         // Don't scan if disabled or no symbols
         if (!enabled || symbols.length === 0) {
             console.log('useScanner: Skipping scan - enabled:', enabled, 'symbols:', symbols.length);
+            // Clear any existing interval
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
             return;
         }
 
@@ -39,12 +45,12 @@ export function useScanner(symbols: string[], enabled: boolean = true) {
             isScanning.current = true;
             setLoading(true);
             setError(null);
-            
+
             // Create a timeout promise
             const timeoutPromise = new Promise((_, reject) => {
                 setTimeout(() => reject(new Error('Scan timeout after 30 seconds')), 30000);
             });
-            
+
             try {
                 console.log('Scanning symbols:', symbols);
                 const results = await Promise.race([
@@ -65,11 +71,29 @@ export function useScanner(symbols: string[], enabled: boolean = true) {
         };
 
         scan();
-    }, [symbols, enabled]);
+
+        // Set up interval if refreshInterval is provided
+        if (refreshInterval && refreshInterval > 0) {
+            console.log(`useScanner: Setting up auto-refresh every ${refreshInterval}ms`);
+            intervalRef.current = setInterval(() => {
+                console.log('useScanner: Auto-refresh triggered');
+                scan();
+            }, refreshInterval);
+        }
+
+        // Cleanup interval on unmount or when dependencies change
+        return () => {
+            if (intervalRef.current) {
+                console.log('useScanner: Cleaning up auto-refresh interval');
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
+        };
+    }, [symbols, enabled, refreshInterval]);
 
     const manualReload = useCallback(async () => {
         console.log('Manual reload requested - enabled:', enabled, 'symbols:', symbols.length);
-        
+
         if (!enabled || symbols.length === 0) {
             console.log('Manual reload: Skipping - not enabled or no symbols');
             return;
@@ -84,12 +108,12 @@ export function useScanner(symbols: string[], enabled: boolean = true) {
         isScanning.current = true;
         setLoading(true);
         setError(null);
-        
+
         // Create a timeout promise
         const timeoutPromise = new Promise((_, reject) => {
             setTimeout(() => reject(new Error('Scan timeout after 30 seconds')), 30000);
         });
-        
+
         try {
             console.log('Manual reload: Scanning symbols:', symbols);
             const results = await Promise.race([
