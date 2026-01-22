@@ -36,6 +36,7 @@ public class PaperTradeService
 
     /// <summary>
     /// Opens a new paper trade based on a signal and risk calculation.
+    /// Multiple trades per symbol are allowed (e.g., different strategies, timeframes, or directions).
     /// </summary>
     public async Task<(bool Success, string Message, PaperTrade? Trade)> OpenTradeAsync(
         TradeSignal signal,
@@ -51,16 +52,6 @@ public class PaperTradeService
         if (!riskCalc.IsAllowed)
         {
             return (false, $"Trade not allowed: {string.Join(", ", riskCalc.Messages)}", null);
-        }
-
-        // Check if we already have an open trade for this symbol
-        var existingTrade = await _context.PaperTrades
-            .Where(t => t.Symbol == signal.Symbol && t.Status == "OPEN")
-            .FirstOrDefaultAsync();
-
-        if (existingTrade != null)
-        {
-            return (false, $"Already have an open trade for {signal.Symbol}", null);
         }
 
         // Allocate capital
@@ -195,10 +186,40 @@ public class PaperTradeService
     /// </summary>
     public async Task<List<PaperTrade>> GetOpenTradesAsync()
     {
-        return await _context.PaperTrades
+        // Use AsNoTracking since we're only reading and calculating runtime PnL
+        // PnL should never be saved to DB for open trades, only for closed ones
+        var trades = await _context.PaperTrades
+            .AsNoTracking()
             .Where(t => t.Status == "OPEN")
             .OrderBy(t => t.OpenedAt)
             .ToListAsync();
+
+        // Calculate current unrealized PnL for each open trade (runtime only, not persisted)
+        foreach (var trade in trades)
+        {
+            try
+            {
+                var candles = await _marketDataProvider.GetCandlesAsync(trade.Symbol, 1, "1d");
+                if (candles.Count > 0)
+                {
+                    var currentPrice = candles.Last().Close;
+                    var pnl = CalculatePnL(trade, currentPrice);
+                    
+                    // Set runtime PnL values (not persisted to DB for open trades)
+                    trade.PnL = pnl.Amount;
+                    trade.PnLPercent = pnl.Percent;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to calculate PnL for trade {Symbol}", trade.Symbol);
+                // Set to 0 if calculation fails
+                trade.PnL = 0;
+                trade.PnLPercent = 0;
+            }
+        }
+
+        return trades;
     }
 
     /// <summary>

@@ -143,8 +143,8 @@ export async function createTrade(
     });
 }
 
-export async function closeTrade(tradeId: number): Promise<PaperTrade> {
-    return fetchWithConfig<PaperTrade>(`/api/papertrades/${tradeId}/close`, {
+export async function closeTrade(tradeId: number): Promise<{ message: string }> {
+    return fetchWithConfig<{ message: string }>(`/api/papertrades/${tradeId}/close`, {
         method: 'POST'
     });
 }

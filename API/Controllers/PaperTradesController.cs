@@ -192,21 +192,44 @@ public class PaperTradesController : ControllerBase
 
     /// <summary>
     /// Manually closes an open trade.
+    /// If exitPrice is not provided, uses current market price.
     /// </summary>
     [HttpPost("{id}/close")]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult> CloseTrade(
         int id,
-        [FromQuery] decimal exitPrice,
+        [FromQuery] decimal? exitPrice = null,
         [FromQuery] string reason = "CLOSED_MANUAL")
     {
-        if (exitPrice <= 0)
-            return BadRequest("Exit price must be greater than zero");
-
         try
         {
-            var result = await _tradeService.CloseTradeAsync(id, exitPrice, reason);
+            // If no exit price provided, get current market price
+            if (!exitPrice.HasValue || exitPrice.Value <= 0)
+            {
+                var trade = await _context.PaperTrades.FindAsync(id);
+                if (trade == null)
+                {
+                    return NotFound(new { error = "Trade not found" });
+                }
+
+                // Get current price from market data
+                var candles = await _context.PaperTrades
+                    .Where(t => t.Id == id)
+                    .Select(t => t.Symbol)
+                    .FirstOrDefaultAsync();
+
+                if (candles == null)
+                {
+                    return NotFound(new { error = "Trade not found" });
+                }
+
+                // Use signal service to get current price
+                var signal = await _signalService.GenerateSignalAsync(trade.Symbol, 5);
+                exitPrice = signal.Entry; // Use current entry price as exit price
+            }
+
+            var result = await _tradeService.CloseTradeAsync(id, exitPrice.Value, reason);
 
             if (!result.Success)
             {

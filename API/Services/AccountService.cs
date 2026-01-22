@@ -73,12 +73,21 @@ public class AccountService
     }
 
     /// <summary>
-    /// Resets the account to initial state.
+    /// Resets the account to initial state and deletes all trades.
     /// </summary>
     public async Task ResetAccountAsync()
     {
         var account = await GetOrCreateAccountAsync();
 
+        // Delete all trades (open and closed)
+        var allTrades = await _context.PaperTrades.ToListAsync();
+        _context.PaperTrades.RemoveRange(allTrades);
+        
+        // Delete all trade history
+        var allHistory = await _context.TradeHistory.ToListAsync();
+        _context.TradeHistory.RemoveRange(allHistory);
+
+        // Reset account to default values
         account.InitialBalance = DEFAULT_INITIAL_BALANCE;
         account.Balance = DEFAULT_INITIAL_BALANCE;
         account.Equity = DEFAULT_INITIAL_BALANCE;
@@ -87,7 +96,8 @@ public class AccountService
 
         await _context.SaveChangesAsync();
         
-        _logger.LogInformation("Account reset to initial balance: {Balance} EUR", DEFAULT_INITIAL_BALANCE);
+        _logger.LogInformation("Account reset: deleted {TradeCount} trades, {HistoryCount} history entries, reset balance to {Balance} EUR", 
+            allTrades.Count, allHistory.Count, DEFAULT_INITIAL_BALANCE);
     }
 
     /// <summary>

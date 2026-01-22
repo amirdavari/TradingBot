@@ -64,25 +64,18 @@ export default function Dashboard() {
     // Auto-refresh during replay simulation (every 5 seconds)
     useReplayRefresh(refreshData, 5000);
 
-    const getSentimentIcon = (sentiment: string) => {
-        switch (sentiment) {
-            case 'positive': return <SentimentSatisfiedIcon color="success" />;
-            case 'neutral': return <SentimentNeutralIcon color="warning" />;
-            case 'negative': return <SentimentDissatisfiedIcon color="error" />;
-            default: return <SentimentNeutralIcon />;
+    // Fetch account data
+    const fetchAccount = async () => {
+        try {
+            const accountData = await getAccount();
+            setAccount(accountData);
+        } catch (err) {
+            console.error('Failed to fetch account:', err);
         }
     };
 
     // Fetch account data on mount
     useEffect(() => {
-        const fetchAccount = async () => {
-            try {
-                const accountData = await getAccount();
-                setAccount(accountData);
-            } catch (err) {
-                console.error('Failed to fetch account:', err);
-            }
-        };
         fetchAccount();
     }, []);
 
@@ -211,9 +204,9 @@ export default function Dashboard() {
     };
 
     return (
-        <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 1, p: 0 }}>
+        <Box sx={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', gap: 1, p: 1 }}>
             {/* Main Content */}
-            <Grid container spacing={1} sx={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
+            <Grid container spacing={1} sx={{ flexShrink: 0, height: '65vh', minHeight: '500px' }}>
                 {/* Watchlist Panel */}
                 <Grid size={2} sx={{ height: '100%', display: 'flex' }}>
                     <WatchlistPanel 
@@ -251,8 +244,10 @@ export default function Dashboard() {
                 </Grid>
             </Grid>
 
-            {/* Open Trades Panel */}
-            <OpenTradesPanel onTradeClick={handleTradeClick} />
+            {/* Open Trades Panel - scrollbar with remaining space */}
+            <Box sx={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
+                <OpenTradesPanel onTradeClick={handleTradeClick} />
+            </Box>
         </Box>
     );
 }

@@ -31,10 +31,19 @@ export default function TradeSetupPanel({
     const [riskCalc, setRiskCalc] = useState<RiskCalculation | null>(null);
     const [loadingRisk, setLoadingRisk] = useState(false);
     const [riskPercent, setRiskPercent] = useState<number>(1);
+    const [lastSignalKey, setLastSignalKey] = useState<string>('');
 
     useEffect(() => {
         if (!signal || signal.entry <= 0 || signal.stopLoss <= 0 || signal.takeProfit <= 0) {
             setRiskCalc(null);
+            return;
+        }
+
+        // Create a key from signal values to detect actual changes
+        const signalKey = `${signal.symbol}-${signal.entry}-${signal.stopLoss}-${signal.takeProfit}-${riskPercent}`;
+        
+        // Only fetch if signal values actually changed
+        if (signalKey === lastSignalKey) {
             return;
         }
 
@@ -49,6 +58,7 @@ export default function TradeSetupPanel({
                     riskPercent
                 );
                 setRiskCalc(calc);
+                setLastSignalKey(signalKey);
             } catch (error) {
                 console.error('Failed to calculate risk:', error);
                 setRiskCalc(null);
@@ -58,7 +68,7 @@ export default function TradeSetupPanel({
         };
 
         fetchRiskCalculation();
-    }, [signal, riskPercent]);
+    }, [signal, riskPercent, lastSignalKey]);
 
     const handleBuy = () => {
         if (!signal || !riskCalc || !riskCalc.isAllowed) return;
@@ -74,13 +84,13 @@ export default function TradeSetupPanel({
 
     return (
         <Paper sx={{ width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}>
-            <Box sx={{ p: 2, pb: 1, flexShrink: 0 }}>
+            <Box sx={{ p: 1.5, pb: 0.5, flexShrink: 0 }}>
                 <Typography variant="h6">Trade Setup</Typography>
-                <Divider sx={{ mt: 1 }} />
+                <Divider sx={{ mt: 0.5 }} />
             </Box>
-            <Box sx={{ flexGrow: 1, overflow: 'auto', px: 2, pb: 2 }}>
+            <Box sx={{ flexGrow: 1, overflow: 'auto', px: 1.5, pb: 1.5 }}>
                 {signal ? (
-                    <Stack spacing={1.5}>
+                    <Stack spacing={1}>
                         {/* Direction (Read-Only) */}
                         <Box>
                             <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -128,7 +138,7 @@ export default function TradeSetupPanel({
 
                         {/* Confidence */}
                         <Box>
-                            <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1} mb={0.5}>
+                            <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1} mb={0.25}>
                                 <Typography variant="caption" color="text.secondary">Confidence:</Typography>
                                 <Typography variant="body2" fontWeight="bold">{signal.confidence}%</Typography>
                             </Stack>
@@ -136,7 +146,7 @@ export default function TradeSetupPanel({
                                 variant="determinate" 
                                 value={signal.confidence} 
                                 sx={{ 
-                                    height: 6, 
+                                    height: 3, 
                                     borderRadius: 1,
                                     '& .MuiLinearProgress-bar': {
                                         backgroundColor: signal.confidence >= 70 ? 'success.main' : signal.confidence >= 50 ? 'warning.main' : 'error.main'
@@ -152,7 +162,7 @@ export default function TradeSetupPanel({
                             </Typography>
                             <List dense disablePadding>
                                 {signal.reasons.map((reason, index) => (
-                                    <ListItem key={index} sx={{ py: 0.25, px: 0 }}>
+                                    <ListItem key={index} sx={{ py: 0, px: 0 }}>
                                         <Typography variant="body2">• {reason}</Typography>
                                     </ListItem>
                                 ))}
@@ -190,8 +200,8 @@ export default function TradeSetupPanel({
                         </Box>
 
                         {loadingRisk ? (
-                            <Box display="flex" justifyContent="center" py={2}>
-                                <CircularProgress size={24} />
+                            <Box display="flex" justifyContent="center" py={1}>
+                                <CircularProgress size={20} />
                             </Box>
                         ) : riskCalc ? (
                             <>
@@ -232,7 +242,7 @@ export default function TradeSetupPanel({
 
                                 {/* Cash-Limited Position Info */}
                                 {riskCalc.isAllowed && riskCalc.limitingFactor === 'CASH' && (
-                                    <Box sx={{ p: 1, bgcolor: 'warning.dark', borderRadius: 1 }}>
+                                    <Box sx={{ p: 0.75, bgcolor: 'warning.dark', borderRadius: 1 }}>
                                         <Typography variant="caption" color="warning.light" display="block" fontWeight="bold">
                                             💡 Cash-begrenzte Position
                                         </Typography>
@@ -244,7 +254,7 @@ export default function TradeSetupPanel({
 
                                 {/* Capital-Limited Position Info */}
                                 {riskCalc.isAllowed && riskCalc.limitingFactor === 'CAPITAL' && (
-                                    <Box sx={{ p: 1, bgcolor: 'info.dark', borderRadius: 1 }}>
+                                    <Box sx={{ p: 0.75, bgcolor: 'info.dark', borderRadius: 1 }}>
                                         <Typography variant="caption" color="info.light" display="block" fontWeight="bold">
                                             📊 Kapital-Limit aktiv
                                         </Typography>
@@ -256,39 +266,22 @@ export default function TradeSetupPanel({
                             </>
                         ) : null}
 
-                        {/* Action Buttons */}
-                        <Stack spacing={1}>
-                            <Button 
-                                variant="contained" 
-                                color="success" 
-                                fullWidth
-                                onClick={handleBuy}
-                                size="large"
-                                disabled={
-                                    signal.direction !== 'LONG' || 
-                                    !riskCalc || 
-                                    !riskCalc.isAllowed || 
-                                    loadingRisk
-                                }
-                            >
-                                Kaufen {riskCalc && `(€${riskCalc.investAmount.toFixed(0)})`}
-                            </Button>
-                            <Button 
-                                variant="contained" 
-                                color="error" 
-                                fullWidth
-                                onClick={handleSell}
-                                size="large"
-                                disabled={
-                                    signal.direction !== 'SHORT' || 
-                                    !riskCalc || 
-                                    !riskCalc.isAllowed || 
-                                    loadingRisk
-                                }
-                            >
-                                Verkaufen {riskCalc && `(€${riskCalc.investAmount.toFixed(0)})`}
-                            </Button>
-                        </Stack>
+                        {/* Action Button */}
+                        <Button 
+                            variant="contained" 
+                            color={signal.direction === 'LONG' ? 'success' : 'error'}
+                            fullWidth
+                            onClick={signal.direction === 'LONG' ? handleBuy : handleSell}
+                            size="large"
+                            disabled={
+                                signal.direction === 'NONE' || 
+                                !riskCalc || 
+                                !riskCalc.isAllowed || 
+                                loadingRisk
+                            }
+                        >
+                            Open {signal.direction} Trade {riskCalc && `(€${riskCalc.investAmount.toFixed(0)})`}
+                        </Button>
                     </Stack>
                 ) : (
                     <Typography variant="body2" color="text.secondary">

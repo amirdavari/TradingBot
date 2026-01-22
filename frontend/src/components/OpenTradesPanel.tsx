@@ -1,6 +1,7 @@
-import { Box, Card, CardContent, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, IconButton } from '@mui/material';
-import { Refresh as RefreshIcon, TrendingUp, TrendingDown } from '@mui/icons-material';
+import { Box, Card, CardContent, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, IconButton, Button } from '@mui/material';
+import { Refresh as RefreshIcon, TrendingUp, TrendingDown, Close as CloseIcon } from '@mui/icons-material';
 import { useOpenTrades } from '../hooks/useOpenTrades';
+import { closeTrade } from '../api/tradingApi';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorAlert from './ErrorAlert';
 
@@ -10,6 +11,22 @@ interface OpenTradesPanelProps {
 
 export function OpenTradesPanel({ onTradeClick }: OpenTradesPanelProps) {
     const { trades, isLoading, error, refresh } = useOpenTrades(5000); // Auto-refresh every 5 seconds
+
+    const handleCloseTrade = async (tradeId: number, symbol: string, event: React.MouseEvent) => {
+        event.stopPropagation(); // Prevent row click
+        
+        if (!confirm(`Trade ${symbol} wirklich manuell schließen?`)) {
+            return;
+        }
+
+        try {
+            await closeTrade(tradeId);
+            refresh(); // Refresh the list
+        } catch (error) {
+            console.error('Failed to close trade:', error);
+            alert(`Fehler beim Schließen des Trades: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
+        }
+    };
 
     // Unrealized PnL is now calculated and provided by backend
     // const calculateUnrealizedPnL = (trade: PaperTrade, currentPrice: number): { pnl: number; pnlPercent: number } => {
@@ -70,8 +87,8 @@ export function OpenTradesPanel({ onTradeClick }: OpenTradesPanelProps) {
     }
 
     return (
-        <Card>
-            <CardContent>
+        <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="h6" component="h2">
                         Open Trades ({trades.length})
@@ -88,8 +105,8 @@ export function OpenTradesPanel({ onTradeClick }: OpenTradesPanelProps) {
                         No open trades
                     </Typography>
                 ) : (
-                    <TableContainer component={Paper} variant="outlined">
-                        <Table size="small">
+                    <TableContainer component={Paper} variant="outlined" sx={{ flexGrow: 1, overflow: 'auto' }}>
+                        <Table size="small" sx={{ minWidth: 1000 }}>
                             <TableHead>
                                 <TableRow>
                                     <TableCell>Symbol</TableCell>
@@ -101,11 +118,12 @@ export function OpenTradesPanel({ onTradeClick }: OpenTradesPanelProps) {
                                     <TableCell align="right">Invest</TableCell>
                                     <TableCell align="right">PnL</TableCell>
                                     <TableCell>Opened</TableCell>
+                                    <TableCell align="center">Action</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 {trades.map((trade) => {
-                                    // For now, we'll use entryPrice as current price until we implement real-time price updates
+                                    // Backend now calculates unrealized PnL based on current price
                                     const { pnl, pnlPercent } = trade.pnL !== undefined && trade.pnLPercent !== undefined
                                         ? { pnl: trade.pnL, pnlPercent: trade.pnLPercent }
                                         : { pnl: 0, pnlPercent: 0 };
@@ -181,6 +199,18 @@ export function OpenTradesPanel({ onTradeClick }: OpenTradesPanelProps) {
                                                 <Typography variant="caption" color="text.secondary">
                                                     {formatDateTime(trade.openedAt)}
                                                 </Typography>
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    color="error"
+                                                    startIcon={<CloseIcon />}
+                                                    onClick={(e) => handleCloseTrade(trade.id, trade.symbol, e)}
+                                                    sx={{ minWidth: '90px' }}
+                                                >
+                                                    Close
+                                                </Button>
                                             </TableCell>
                                         </TableRow>
                                     );
