@@ -156,11 +156,6 @@ export default function Dashboard() {
         fetchNewsData();
     }, [selectedSymbol]);
 
-    const handleTimeframeChange = (_: React.MouseEvent<HTMLElement>, newTimeframe: 1 | 5 | 15 | null) => {
-        if (newTimeframe !== null) {
-            setTimeframe(newTimeframe);
-        }
-    };
 
     const handleSymbolChange = (symbol: string) => {
         setSelectedSymbol(symbol);
