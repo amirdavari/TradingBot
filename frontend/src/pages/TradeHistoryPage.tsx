@@ -29,14 +29,14 @@ export default function TradeHistoryPage() {
     }
 
     return (
-        <Container maxWidth="xl" sx={{ py: 3 }}>
-            <Box sx={{ mb: 4 }}>
+        <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', p: 3 }}>
+            <Box sx={{ mb: 2, flexShrink: 0 }}>
                 {statistics && <StatisticsOverview statistics={statistics} />}
             </Box>
 
-            <Paper sx={{ p: 2 }}>
+            <Paper sx={{ p: 2, flexGrow: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
                 <TradeHistoryTable trades={trades} onTradeClick={handleTradeClick} />
             </Paper>
-        </Container>
+        </Box>
     );
 }

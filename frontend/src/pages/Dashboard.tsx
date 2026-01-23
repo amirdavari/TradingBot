@@ -270,7 +270,7 @@ export default function Dashboard() {
             </Grid>
 
             {/* Open Trades Panel - scrollbar with remaining space */}
-            <Box sx={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
+            <Box sx={{ flexGrow: 1, minHeight: 0, overflow: 'hidden', display: 'flex' }}>
                 <OpenTradesPanel onTradeClick={handleTradeClick} />
             </Box>
         </Box>

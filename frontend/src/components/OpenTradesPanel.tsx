@@ -87,9 +87,9 @@ export function OpenTradesPanel({ onTradeClick }: OpenTradesPanelProps) {
     }
 
     return (
-        <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Card sx={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', minHeight: 0, maxHeight: '100%', overflow: 'hidden', p: 2, pb: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5, flexShrink: 0 }}>
                     <Typography variant="h6" component="h2">
                         Open Trades ({trades.length})
                     </Typography>
@@ -105,8 +105,8 @@ export function OpenTradesPanel({ onTradeClick }: OpenTradesPanelProps) {
                         No open trades
                     </Typography>
                 ) : (
-                    <TableContainer component={Paper} variant="outlined" sx={{ flexGrow: 1, overflow: 'auto' }}>
-                        <Table size="small" sx={{ minWidth: 1000 }}>
+                    <TableContainer component={Paper} variant="outlined" sx={{ flexGrow: 1, overflow: 'auto', minHeight: 0 }}>
+                        <Table size="small" stickyHeader>
                             <TableHead>
                                 <TableRow>
                                     <TableCell>Symbol</TableCell>

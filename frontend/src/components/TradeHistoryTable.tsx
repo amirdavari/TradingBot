@@ -95,7 +95,7 @@ export default function TradeHistoryTable({ trades, onTradeClick }: TradeHistory
                 Trade History
             </Typography>
             <TableContainer component={Paper}>
-                <Table size="small">
+                <Table size="small" >
                     <TableHead>
                         <TableRow>
                             <TableCell>

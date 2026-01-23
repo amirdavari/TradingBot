@@ -10,8 +10,10 @@ import ListItemText from '@mui/material/ListItemText';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import DeleteIcon from '@mui/icons-material/Delete';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import TrendingFlatIcon from '@mui/icons-material/TrendingFlat';
 import LoadingSpinner from './LoadingSpinner';
-import { ScoreBadge, TrendBadge } from './Badge';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useScanner } from '../hooks/useScanner';
 import { useOpenTrades } from '../hooks/useOpenTrades';
@@ -84,10 +86,56 @@ export default function WatchlistPanel({ selectedSymbol, onSymbolChange }: Watch
                                     secondaryAction={
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                             {result && !result.hasError && (
-                                                <>
-                                                    <TrendBadge trend={result.trend} />
-                                                    <ScoreBadge score={result.confidence} />
-                                                </>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                    <Tooltip title={`Trend: ${result.trend}`}>
+                                                        <Box
+                                                            sx={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                color:
+                                                                    result.trend === 'LONG'
+                                                                        ? 'success.main'
+                                                                        : result.trend === 'SHORT'
+                                                                        ? 'error.main'
+                                                                        : 'text.secondary',
+                                                            }}
+                                                        >
+                                                            {result.trend === 'LONG' ? (
+                                                                <TrendingUpIcon fontSize="small" />
+                                                            ) : result.trend === 'SHORT' ? (
+                                                                <TrendingDownIcon fontSize="small" />
+                                                            ) : (
+                                                                <TrendingFlatIcon fontSize="small" />
+                                                            )}
+                                                        </Box>
+                                                    </Tooltip>
+                                                    <Tooltip
+                                                        title={`Confidence: ${result.confidence} (${
+                                                            result.confidence >= 75
+                                                                ? 'GOOD'
+                                                                : result.confidence >= 60
+                                                                ? 'WATCH'
+                                                                : 'SKIP'
+                                                        })`}
+                                                    >
+                                                        <Typography
+                                                            variant="caption"
+                                                            sx={{
+                                                                fontWeight: 'bold',
+                                                                minWidth: 24,
+                                                                textAlign: 'center',
+                                                                color:
+                                                                    result.confidence >= 75
+                                                                        ? 'success.main'
+                                                                        : result.confidence >= 60
+                                                                        ? 'warning.main'
+                                                                        : 'error.main',
+                                                            }}
+                                                        >
+                                                            {result.confidence}
+                                                        </Typography>
+                                                    </Tooltip>
+                                                </Box>
                                             )}
                                             <Tooltip
                                                 title={

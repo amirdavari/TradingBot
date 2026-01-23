@@ -248,7 +248,7 @@ export default function ScannerPage() {
                         <LoadingSpinner size={24} />
                     </Box>
                 )}
-                <Table>
+                <Table size="small">
                     <TableHead>
                         <TableRow>
                             <TableCell>
@@ -308,13 +308,13 @@ export default function ScannerPage() {
                                         opacity: result?.hasError ? 0.7 : 1
                                     }}
                                 >
-                                    <TableCell>
-                                        <Typography variant="body1" fontWeight="bold">
+                                    <TableCell sx={{ py: 1 }}>
+                                        <Typography variant="body2" fontWeight="bold">
                                             {stock.name}
                                         </Typography>
                                     </TableCell>
-                                    <TableCell>
-                                        <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                                    <TableCell sx={{ py: 1 }}>
+                                        <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>
                                             {stock.ticker}
                                         </Typography>
                                         {result?.hasError && (
@@ -323,42 +323,42 @@ export default function ScannerPage() {
                                             </Typography>
                                         )}
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell sx={{ py: 1 }}>
                                         {result && !result.hasError ? (
                                             <ScoreBadge score={result.score} />
                                         ) : (
                                             <Typography variant="body2" color="text.secondary">-</Typography>
                                         )}
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell sx={{ py: 1 }}>
                                         {result && !result.hasError ? (
                                             <TrendBadge trend={result.trend} />
                                         ) : (
                                             <Typography variant="body2" color="text.secondary">-</Typography>
                                         )}
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell sx={{ py: 1 }}>
                                         {result && !result.hasError ? (
                                             <VolumeBadge status={result.volumeStatus} />
                                         ) : (
                                             <Typography variant="body2" color="text.secondary">-</Typography>
                                         )}
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell sx={{ py: 1 }}>
                                         {result && !result.hasError ? (
                                             <NewsBadge hasNews={result.hasNews} />
                                         ) : (
                                             <Typography variant="body2" color="text.secondary">-</Typography>
                                         )}
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell sx={{ py: 1 }}>
                                         {result && !result.hasError ? (
                                             <ConfidenceBadge confidence={result.confidence} />
                                         ) : (
                                             <Typography variant="body2" color="text.secondary">-</Typography>
                                         )}
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell sx={{ py: 1 }}>
                                         {result && !result.hasError && result.reasons.length > 0 ? (
                                             <Box component="ul" sx={{ margin: 0, paddingLeft: 2 }}>
                                                 {result.reasons.map((reason: string, idx: number) => (
