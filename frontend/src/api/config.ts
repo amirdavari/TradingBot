@@ -58,7 +58,7 @@ export async function fetchWithConfig<T>(
 ): Promise<T> {
     const url = `${API_CONFIG.baseURL}${endpoint}`;
     console.log('[API] Fetching:', url);
-    
+
     try {
         const response = await fetch(url, {
             ...options,
