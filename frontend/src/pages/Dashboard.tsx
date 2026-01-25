@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
@@ -8,7 +8,7 @@ import TradeSetupPanel from '../components/TradeSetupPanel';
 import { OpenTradesPanel } from '../components/OpenTradesPanel';
 import { getCandles, getSignal, getNews, getAccount, createTrade } from '../api/tradingApi';
 import type { Candle, TradeSignal, NewsItem, Account, RiskCalculation } from '../models';
-import { useReplayRefresh } from '../hooks/useReplayRefresh';
+import { useSignalRChartRefresh, useSignalRAccountUpdate } from '../hooks/useSignalR';
 
 export default function Dashboard() {
     const { symbol: urlSymbol } = useParams<{ symbol: string }>();
@@ -42,49 +42,65 @@ export default function Dashboard() {
         }
     };
 
-    // Refresh data automatically when replay is running
-    const refreshData = async () => {
-        if (!loading) { // Don't refresh if already loading
-            try {
-                const period = getPeriodForTimeframe(timeframe);
-                const [candlesData, signalData] = await Promise.all([
-                    getCandles(selectedSymbol, timeframe, period),
-                    getSignal(selectedSymbol, timeframe)
-                ]);
+    // Refresh data function (called by SignalR or initial load)
+    // Uses ref to check loading state to avoid stale closure issues
+    const loadingRef = useRef(loading);
+    loadingRef.current = loading;
 
-                // Always create a new array reference to trigger React updates
-                // This ensures the chart updates even if candle count is the same
-                setCandles([...candlesData]);
-                setSignal({ ...signalData });
-                setError(null); // Clear any previous errors on successful refresh
+    // Track if initial data fetch has completed
+    const hasInitialFetch = useRef(false);
 
-                console.log(`Refreshed data: ${candlesData.length} candles, last candle: ${candlesData[candlesData.length - 1]?.time}`);
-            } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : 'Failed to refresh data';
-                setError(errorMessage);
-                console.error('Error refreshing data in replay:', err);
-                // Clear candles and signal on error
-                setCandles([]);
-                setSignal(null);
-            }
+    const refreshData = useCallback(async () => {
+        // Only allow SignalR refresh after initial fetch is complete
+        if (!hasInitialFetch.current) {
+            console.log('[Dashboard] Skipping SignalR refresh - initial fetch not complete');
+            return;
         }
-    };
 
-    // Auto-refresh during replay simulation (every 5 seconds)
-    useReplayRefresh(refreshData, 5000);
+        if (loadingRef.current) {
+            console.log('[Dashboard] Skipping refresh - already loading');
+            return;
+        }
 
-    // Auto-refresh in live mode (every 10 seconds)
-    useEffect(() => {
-        const interval = setInterval(() => {
-            console.log('[Dashboard] Live mode auto-refresh triggered');
-            refreshData();
-        }, 10000); // 10 seconds
+        console.log('[Dashboard] Starting SignalR data refresh for', selectedSymbol);
 
-        return () => {
-            console.log('[Dashboard] Cleanup live mode auto-refresh interval');
-            clearInterval(interval);
-        };
-    }, [selectedSymbol, timeframe]); // Re-create interval when symbol/timeframe changes
+        try {
+            const period = getPeriodForTimeframe(timeframe);
+            const [candlesData, signalData] = await Promise.all([
+                getCandles(selectedSymbol, timeframe, period),
+                getSignal(selectedSymbol, timeframe)
+            ]);
+
+            // Always create a new array reference to trigger React updates
+            // This ensures the chart updates even if candle count is the same
+            setCandles([...candlesData]);
+            setSignal({ ...signalData });
+            setError(null); // Clear any previous errors on successful refresh
+
+            console.log(`[Dashboard] Refreshed data: ${candlesData.length} candles, last candle: ${candlesData[candlesData.length - 1]?.time}`);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to refresh data';
+            setError(errorMessage);
+            console.error('[Dashboard] Error refreshing data:', err);
+            // Keep existing data on SignalR refresh error - don't clear
+        }
+    }, [selectedSymbol, timeframe]);
+
+    // Real-time chart refresh via SignalR (replaces polling in replay mode)
+    const handleChartRefresh = useCallback(() => {
+        console.log('[Dashboard] Chart refresh via SignalR');
+        refreshData();
+    }, [refreshData]);
+
+    useSignalRChartRefresh(handleChartRefresh);
+
+    // Real-time account updates via SignalR
+    const handleAccountUpdate = useCallback((updatedAccount: Account) => {
+        console.log('[Dashboard] Account update via SignalR:', updatedAccount);
+        setAccount(updatedAccount);
+    }, []);
+
+    useSignalRAccountUpdate(handleAccountUpdate);
 
     // Fetch account data
     const fetchAccount = async () => {
@@ -129,6 +145,8 @@ export default function Dashboard() {
                 console.error('[Dashboard] Error fetching data:', err);
             } finally {
                 setLoading(false);
+                // Mark initial fetch as complete after first successful or failed load
+                hasInitialFetch.current = true;
             }
         };
 
@@ -228,7 +246,7 @@ export default function Dashboard() {
             {/* Main Content */}
             <Grid container spacing={1} sx={{ flexShrink: 0, height: '65vh', minHeight: '500px' }}>
                 {/* Watchlist Panel */}
-                <Grid size={2} sx={{ height: '100%', display: 'flex' }}>
+                <Grid size={3} sx={{ height: '100%', display: 'flex' }}>
                     <WatchlistPanel
                         selectedSymbol={selectedSymbol}
                         onSymbolChange={handleSymbolChange}
@@ -236,7 +254,7 @@ export default function Dashboard() {
                 </Grid>
 
                 {/* Chart + News Panel */}
-                <Grid size={7} sx={{ height: '100%', display: 'flex' }}>
+                <Grid size={6} sx={{ height: '100%', display: 'flex' }}>
                     <ChartPanel
                         candles={candles}
                         signal={signal}

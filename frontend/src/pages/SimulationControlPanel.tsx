@@ -33,7 +33,7 @@ export default function SimulationControlPanel() {
         setSpeed,
         setTime,
         setMode,
-    } = useReplayState(2000); // Poll every 2 seconds for responsive UI
+    } = useReplayState(); // Uses SignalR for real-time updates
 
     const [selectedDate, setSelectedDate] = useState('');
     const [actionLoading, setActionLoading] = useState(false);

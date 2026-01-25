@@ -3,7 +3,6 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
-import ScannerPage from './pages/ScannerPage';
 import AccountPage from './pages/AccountPage';
 import TradeHistoryPage from './pages/TradeHistoryPage';
 import SimulationControlPanel from './pages/SimulationControlPanel';
@@ -28,7 +27,6 @@ function App() {
         <Layout>
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/scanner" element={<ScannerPage />} />
             <Route path="/account" element={<AccountPage />} />
             <Route path="/history" element={<TradeHistoryPage />} />
             <Route path="/simulation" element={<SimulationControlPanel />} />

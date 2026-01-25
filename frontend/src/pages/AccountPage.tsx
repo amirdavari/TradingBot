@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Paper from '@mui/material/Paper';
@@ -16,7 +16,7 @@ import ErrorAlert from '../components/ErrorAlert';
 import RiskSettingsDialog from '../components/RiskSettingsDialog';
 import { getAccount, resetAccount } from '../api/tradingApi';
 import type { Account } from '../models';
-import { useReplayRefresh } from '../hooks/useReplayRefresh';
+import { useSignalRAccountUpdate } from '../hooks/useSignalR';
 
 export default function AccountPage() {
     const [account, setAccount] = useState<Account | null>(null);
@@ -37,8 +37,13 @@ export default function AccountPage() {
         }
     };
 
-    // Auto-refresh during replay simulation (every 5 seconds)
-    useReplayRefresh(fetchAccount, 5000);
+    // Real-time account updates via SignalR (replaces polling)
+    const handleAccountUpdate = useCallback((updatedAccount: Account) => {
+        console.log('[AccountPage] Received account update via SignalR:', updatedAccount);
+        setAccount(updatedAccount);
+    }, []);
+
+    useSignalRAccountUpdate(handleAccountUpdate);
 
     useEffect(() => {
         fetchAccount();
@@ -161,8 +166,8 @@ export default function AccountPage() {
                             <Typography variant="h4" sx={{ mb: 1 }}>
                                 {formatCurrency(account.equity)}
                             </Typography>
-                            <Typography 
-                                variant="body2" 
+                            <Typography
+                                variant="body2"
                                 sx={{ color: getPerformanceColor(account.equity, account.initialBalance) }}
                             >
                                 {formatPercentage(account.equity, account.initialBalance)}
@@ -196,7 +201,7 @@ export default function AccountPage() {
                     Account Details
                 </Typography>
                 <Divider sx={{ mb: 2 }} />
-                
+
                 <Grid container spacing={2}>
                     <Grid item xs={12} sm={6} md={3}>
                         <Typography variant="body2" color="text.secondary">
@@ -206,31 +211,31 @@ export default function AccountPage() {
                             {formatCurrency(allocatedCapital)}
                         </Typography>
                     </Grid>
-                    
+
                     <Grid item xs={12} sm={6} md={3}>
                         <Typography variant="body2" color="text.secondary">
                             Unrealized P&L
                         </Typography>
-                        <Typography 
+                        <Typography
                             variant="h6"
                             sx={{ color: unrealizedPnL >= 0 ? 'success.main' : 'error.main' }}
                         >
                             {formatCurrency(unrealizedPnL)}
                         </Typography>
                     </Grid>
-                    
+
                     <Grid item xs={12} sm={6} md={3}>
                         <Typography variant="body2" color="text.secondary">
                             Total P&L
                         </Typography>
-                        <Typography 
+                        <Typography
                             variant="h6"
                             sx={{ color: getPerformanceColor(account.equity, account.initialBalance) }}
                         >
                             {formatCurrency(totalPnL)}
                         </Typography>
                     </Grid>
-                    
+
                     <Grid item xs={12} sm={6} md={3}>
                         <Typography variant="body2" color="text.secondary">
                             Last Updated

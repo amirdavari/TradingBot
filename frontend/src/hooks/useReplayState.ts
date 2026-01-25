@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { type ReplayState } from '../models';
 import * as replayApi from '../api/replayApi';
+import { useSignalRReplayState } from './useSignalR';
 
 /**
  * Hook for managing replay simulation state.
  * IMPORTANT: Frontend holds NO local time - all time comes from backend.
+ * Uses SignalR for real-time updates, with initial fetch on mount.
  */
-export function useReplayState(pollingInterval: number = 5000) {
+export function useReplayState() {
     const [state, setState] = useState<ReplayState | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -27,6 +29,12 @@ export function useReplayState(pollingInterval: number = 5000) {
             setLoading(false);
         }
     }, []);
+
+    // Listen for SignalR updates
+    useSignalRReplayState((newState) => {
+        setState(newState);
+        setError(null);
+    });
 
     /**
      * Starts the replay simulation.
@@ -112,21 +120,12 @@ export function useReplayState(pollingInterval: number = 5000) {
         }
     }, []);
 
-    // Initial fetch on mount
+    // Initial fetch on mount (SignalR will handle subsequent updates)
     useEffect(() => {
         fetchState();
     }, [fetchState]);
 
-    // Polling to keep state synchronized with backend
-    useEffect(() => {
-        if (!pollingInterval) return;
-
-        const interval = setInterval(() => {
-            fetchState();
-        }, pollingInterval);
-
-        return () => clearInterval(interval);
-    }, [fetchState, pollingInterval]);
+    // NOTE: Polling removed - SignalR handles real-time updates
 
     return {
         state,

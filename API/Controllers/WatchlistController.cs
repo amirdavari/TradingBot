@@ -20,7 +20,7 @@ public class WatchlistController : ControllerBase
     private readonly ILogger<WatchlistController> _logger;
 
     public WatchlistController(
-        ApplicationDbContext context, 
+        ApplicationDbContext context,
         SymbolValidationService validationService,
         IMarketTimeProvider timeProvider,
         ILogger<WatchlistController> logger)
@@ -84,6 +84,7 @@ public class WatchlistController : ControllerBase
         var watchlistSymbol = new WatchlistSymbol
         {
             Symbol = symbol,
+            CompanyName = request.CompanyName?.Trim(),
             CreatedAt = _timeProvider.GetCurrentTime()
         };
 
@@ -127,4 +128,5 @@ public class WatchlistController : ControllerBase
 public record AddSymbolRequest
 {
     public required string Symbol { get; init; }
+    public string? CompanyName { get; init; }
 }

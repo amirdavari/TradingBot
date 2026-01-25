@@ -1,13 +1,16 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using API.Models;
 using API.Data;
+using API.Hubs;
 using API.Services;
 
 namespace API.Controllers;
 
 /// <summary>
 /// Paper trades controller for managing simulated trades.
+/// Pushes trade updates via SignalR.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -17,6 +20,8 @@ public class PaperTradesController : ControllerBase
     private readonly PaperTradeService _tradeService;
     private readonly SignalService _signalService;
     private readonly RiskManagementService _riskService;
+    private readonly AccountService _accountService;
+    private readonly IHubContext<TradingHub> _hubContext;
     private readonly ILogger<PaperTradesController> _logger;
 
     public PaperTradesController(
@@ -24,12 +29,16 @@ public class PaperTradesController : ControllerBase
         PaperTradeService tradeService,
         SignalService signalService,
         RiskManagementService riskService,
+        AccountService accountService,
+        IHubContext<TradingHub> hubContext,
         ILogger<PaperTradesController> logger)
     {
         _context = context;
         _tradeService = tradeService;
         _signalService = signalService;
         _riskService = riskService;
+        _accountService = accountService;
+        _hubContext = hubContext;
         _logger = logger;
     }
 
@@ -106,6 +115,11 @@ public class PaperTradesController : ControllerBase
 
             _logger.LogInformation("Created trade for {Symbol}: {Message}", request.Symbol, result.Message);
 
+            // Push trade update and account update via SignalR
+            await _hubContext.Clients.All.SendAsync(TradingHubMethods.ReceiveTradeUpdate, result.Trade);
+            var account = await _accountService.GetOrCreateAccountAsync();
+            await _hubContext.Clients.All.SendAsync(TradingHubMethods.ReceiveAccountUpdate, account);
+
             return CreatedAtAction(nameof(GetOpenTrades), new { id = result.Trade!.Id }, result.Trade);
         }
         catch (Exception ex)
@@ -165,9 +179,10 @@ public class PaperTradesController : ControllerBase
 
             if (!riskCalc.IsAllowed)
             {
-                return BadRequest(new { 
+                return BadRequest(new
+                {
                     error = "Trade not allowed",
-                    messages = riskCalc.Messages 
+                    messages = riskCalc.Messages
                 });
             }
 
@@ -180,6 +195,11 @@ public class PaperTradesController : ControllerBase
             }
 
             _logger.LogInformation("Auto-executed trade for {Symbol}: {Message}", symbol, result.Message);
+
+            // Push trade update and account update via SignalR
+            await _hubContext.Clients.All.SendAsync(TradingHubMethods.ReceiveTradeUpdate, result.Trade);
+            var account = await _accountService.GetOrCreateAccountAsync();
+            await _hubContext.Clients.All.SendAsync(TradingHubMethods.ReceiveAccountUpdate, account);
 
             return CreatedAtAction(nameof(GetOpenTrades), new { id = result.Trade!.Id }, result.Trade);
         }
@@ -234,6 +254,18 @@ public class PaperTradesController : ControllerBase
             if (!result.Success)
             {
                 return NotFound(new { error = result.Message });
+            }
+
+            // Get the closed trade to push via SignalR
+            var closedTrade = await _context.PaperTrades.FindAsync(id);
+            if (closedTrade != null)
+            {
+                await _hubContext.Clients.All.SendAsync(
+                    TradingHubMethods.ReceiveTradeClosed,
+                    new { Trade = closedTrade, Reason = reason });
+
+                var account = await _accountService.GetOrCreateAccountAsync();
+                await _hubContext.Clients.All.SendAsync(TradingHubMethods.ReceiveAccountUpdate, account);
             }
 
             return Ok(new { message = result.Message });

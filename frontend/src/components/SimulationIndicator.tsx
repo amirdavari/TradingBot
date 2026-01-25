@@ -11,7 +11,7 @@ import { useReplayState } from '../hooks/useReplayState';
  * - REPLAY mode: yellow indicator with date, time, and speed
  */
 export default function SimulationIndicator() {
-    const { state, loading } = useReplayState(5000); // Poll every 5 seconds
+    const { state, loading } = useReplayState(); // Uses SignalR for real-time updates
 
     if (loading || !state) {
         return null;

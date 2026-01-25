@@ -34,7 +34,7 @@ public class ReplayController : ControllerBase
     public ActionResult<ReplayStateResponse> GetState()
     {
         var state = _timeProvider.GetReplayState();
-        
+
         var response = new ReplayStateResponse
         {
             Mode = state.Mode == MarketMode.Live ? "LIVE" : "REPLAY",
@@ -51,18 +51,18 @@ public class ReplayController : ControllerBase
     /// Starts the replay simulation.
     /// </summary>
     [HttpPost("start")]
-    public IActionResult Start()
+    public async Task<IActionResult> Start()
     {
         var mode = _timeProvider.GetMode();
-        
+
         if (mode != MarketMode.Replay)
         {
             return BadRequest(new { error = "Cannot start replay in Live mode. Switch to Replay mode first." });
         }
 
-        _clockService.Start();
+        await _clockService.StartAsync();
         _logger.LogInformation("Replay started via API");
-        
+
         return Ok(new { message = "Replay started", state = GetStateResponse() });
     }
 
@@ -70,11 +70,11 @@ public class ReplayController : ControllerBase
     /// Pauses the replay simulation.
     /// </summary>
     [HttpPost("pause")]
-    public IActionResult Pause()
+    public async Task<IActionResult> Pause()
     {
-        _clockService.Pause();
+        await _clockService.PauseAsync();
         _logger.LogInformation("Replay paused via API");
-        
+
         return Ok(new { message = "Replay paused", state = GetStateResponse() });
     }
 
@@ -82,11 +82,11 @@ public class ReplayController : ControllerBase
     /// Resets the replay to the start time.
     /// </summary>
     [HttpPost("reset")]
-    public IActionResult Reset()
+    public async Task<IActionResult> Reset()
     {
-        _clockService.Reset();
+        await _clockService.ResetAsync();
         _logger.LogInformation("Replay reset via API");
-        
+
         return Ok(new { message = "Replay reset", state = GetStateResponse() });
     }
 
@@ -95,7 +95,7 @@ public class ReplayController : ControllerBase
     /// </summary>
     /// <param name="request">Speed request containing the speed multiplier</param>
     [HttpPost("speed")]
-    public IActionResult SetSpeed([FromBody] SetSpeedRequest request)
+    public async Task<IActionResult> SetSpeed([FromBody] SetSpeedRequest request)
     {
         if (request.Speed <= 0)
         {
@@ -107,9 +107,9 @@ public class ReplayController : ControllerBase
             return BadRequest(new { error = "Speed cannot exceed 100x" });
         }
 
-        _clockService.SetSpeed(request.Speed);
+        await _clockService.SetSpeedAsync(request.Speed);
         _logger.LogInformation("Replay speed set to {Speed}x via API", request.Speed);
-        
+
         return Ok(new { message = $"Speed set to {request.Speed}x", state = GetStateResponse() });
     }
 
@@ -118,10 +118,10 @@ public class ReplayController : ControllerBase
     /// </summary>
     /// <param name="request">Request containing the start time</param>
     [HttpPost("time")]
-    public IActionResult SetReplayTime([FromBody] SetReplayTimeRequest request)
+    public async Task<IActionResult> SetReplayTime([FromBody] SetReplayTimeRequest request)
     {
         var mode = _timeProvider.GetMode();
-        
+
         if (mode != MarketMode.Replay)
         {
             return BadRequest(new { error = "Cannot set replay time in Live mode" });
@@ -132,9 +132,9 @@ public class ReplayController : ControllerBase
             return BadRequest(new { error = "Start time cannot be in the future" });
         }
 
-        _clockService.SetReplayStartTime(request.StartTime);
+        await _clockService.SetReplayStartTimeAsync(request.StartTime);
         _logger.LogInformation("Replay start time set to {Time} via API", request.StartTime);
-        
+
         return Ok(new { message = "Replay time set", state = GetStateResponse() });
     }
 
@@ -143,7 +143,7 @@ public class ReplayController : ControllerBase
     /// </summary>
     /// <param name="request">Request containing the mode</param>
     [HttpPost("mode")]
-    public IActionResult SetMode([FromBody] SetModeRequest request)
+    public async Task<IActionResult> SetMode([FromBody] SetModeRequest request)
     {
         var mode = request.Mode.ToUpper() switch
         {
@@ -160,16 +160,16 @@ public class ReplayController : ControllerBase
         // Pause replay when switching modes
         if (_timeProvider.GetMode() == MarketMode.Replay)
         {
-            _clockService.Pause();
+            await _clockService.PauseAsync();
         }
 
         _timeProvider.SetMode(mode.Value);
-        
+
         // Clear rate limit cache to avoid timeout issues after mode switch
         Data.YahooFinanceMarketDataProvider.ClearRateLimitCache();
-        
+
         _logger.LogInformation("Market mode set to {Mode} via API (cache cleared)", request.Mode);
-        
+
         return Ok(new { message = $"Mode set to {request.Mode}", state = GetStateResponse() });
     }
 

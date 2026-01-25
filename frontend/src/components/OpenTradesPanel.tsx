@@ -10,11 +10,11 @@ interface OpenTradesPanelProps {
 }
 
 export function OpenTradesPanel({ onTradeClick }: OpenTradesPanelProps) {
-    const { trades, isLoading, error, refresh } = useOpenTrades(5000); // Auto-refresh every 5 seconds
+    const { trades, isLoading, error, refresh } = useOpenTrades(); // Uses SignalR for real-time updates
 
     const handleCloseTrade = async (tradeId: number, symbol: string, event: React.MouseEvent) => {
         event.stopPropagation(); // Prevent row click
-        
+
         if (!confirm(`Trade ${symbol} wirklich manuell schließen?`)) {
             return;
         }

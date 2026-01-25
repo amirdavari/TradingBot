@@ -14,9 +14,13 @@ export default function CandlestickChart({ candles, signal }: CandlestickChartPr
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
     const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
     const lastCandleCountRef = useRef<number>(0);
+    const isDisposedRef = useRef<boolean>(false);
 
     useEffect(() => {
         if (!chartContainerRef.current) return;
+
+        // Reset disposed flag on mount
+        isDisposedRef.current = false;
 
         // Create chart
         const chart = createChart(chartContainerRef.current, {
@@ -75,8 +79,8 @@ export default function CandlestickChart({ candles, signal }: CandlestickChartPr
 
         // Handle resize
         const handleResize = () => {
-            if (chartContainerRef.current && chart) {
-                chart.applyOptions({
+            if (chartContainerRef.current && chartRef.current && !isDisposedRef.current) {
+                chartRef.current.applyOptions({
                     width: chartContainerRef.current.clientWidth,
                     height: chartContainerRef.current.clientHeight,
                 });
@@ -87,63 +91,74 @@ export default function CandlestickChart({ candles, signal }: CandlestickChartPr
 
         // Cleanup
         return () => {
+            isDisposedRef.current = true;
             window.removeEventListener('resize', handleResize);
-            chart.remove();
+            if (chartRef.current) {
+                chartRef.current.remove();
+            }
             chartRef.current = null;
             candlestickSeriesRef.current = null;
+            volumeSeriesRef.current = null;
         };
     }, []);
 
     // Update candle data
     useEffect(() => {
+        // Guard against disposed chart
+        if (isDisposedRef.current) return;
         if (!candlestickSeriesRef.current || !volumeSeriesRef.current || !candles.length || !chartRef.current) return;
 
-        const timeScale = chartRef.current.timeScale();
-        const currentCandleCount = candles.length;
-        const hadCandles = lastCandleCountRef.current > 0;
-        const newCandlesAdded = currentCandleCount > lastCandleCountRef.current;
+        try {
+            const timeScale = chartRef.current.timeScale();
+            const currentCandleCount = candles.length;
+            const hadCandles = lastCandleCountRef.current > 0;
+            const newCandlesAdded = currentCandleCount > lastCandleCountRef.current;
 
-        // Convert candles to lightweight-charts format
-        const chartData: CandlestickData[] = candles.map((candle) => ({
-            time: new Date(candle.time).getTime() / 1000 as Time,
-            open: candle.open,
-            high: candle.high,
-            low: candle.low,
-            close: candle.close,
-        }));
+            // Convert candles to lightweight-charts format
+            const chartData: CandlestickData[] = candles.map((candle) => ({
+                time: new Date(candle.time).getTime() / 1000 as Time,
+                open: candle.open,
+                high: candle.high,
+                low: candle.low,
+                close: candle.close,
+            }));
 
-        // Convert candles to volume data (colored by price direction)
-        const volumeData: HistogramData[] = candles.map((candle) => ({
-            time: new Date(candle.time).getTime() / 1000 as Time,
-            value: candle.volume,
-            color: candle.close >= candle.open ? '#26a69a80' : '#ef535080',
-        }));
+            // Convert candles to volume data (colored by price direction)
+            const volumeData: HistogramData[] = candles.map((candle) => ({
+                time: new Date(candle.time).getTime() / 1000 as Time,
+                value: candle.volume,
+                color: candle.close >= candle.open ? '#26a69a80' : '#ef535080',
+            }));
 
-        // Use setData to replace all data (handles additions and updates)
-        candlestickSeriesRef.current.setData(chartData);
-        volumeSeriesRef.current.setData(volumeData);
+            // Use setData to replace all data (handles additions and updates)
+            candlestickSeriesRef.current.setData(chartData);
+            volumeSeriesRef.current.setData(volumeData);
 
-        // Auto-scroll to latest data when new candles are added
-        // or on first load
-        if (!hadCandles || newCandlesAdded) {
-            timeScale.fitContent();
+            // Auto-scroll to latest data when new candles are added
+            // or on first load
+            if (!hadCandles || newCandlesAdded) {
+                timeScale.fitContent();
+            }
+            // Otherwise, keep the user's current zoom/scroll position
+
+            // Update the last candle count
+            lastCandleCountRef.current = currentCandleCount;
+        } catch (e) {
+            // Chart may have been disposed during async operation
+            console.warn('[CandlestickChart] Error updating candle data:', e);
         }
-        // Otherwise, keep the user's current zoom/scroll position
-
-        // Update the last candle count
-        lastCandleCountRef.current = currentCandleCount;
     }, [candles]);
 
     // Add signal lines (Entry, Stop-Loss, Take-Profit)
     useEffect(() => {
+        // Guard against disposed chart
+        if (isDisposedRef.current) return;
+
         const series = candlestickSeriesRef.current;
         if (!chartRef.current || !series || !signal || !candles.length) return;
 
-        // Create a unique key based on signal values to track if signal actually changed
-        const signalKey = `${signal.entry}-${signal.stopLoss}-${signal.takeProfit}`;
-
-        // Remove all existing price lines by recreating the series
-        // This is the cleanest way to remove all price lines in lightweight-charts
+        // Store price lines for cleanup
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const priceLines: any[] = [];
 
         // Add Entry line
@@ -187,14 +202,18 @@ export default function CandlestickChart({ candles, signal }: CandlestickChartPr
 
         // Cleanup: Remove price lines when signal changes
         return () => {
+            // Don't try to remove lines if chart is disposed
+            if (isDisposedRef.current) return;
+
             priceLines.forEach(line => {
                 try {
                     series.removePriceLine(line);
-                } catch (e) {
-                    // Ignore errors if line already removed
+                } catch {
+                    // Ignore errors if line already removed or chart disposed
                 }
             });
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [signal?.entry, signal?.stopLoss, signal?.takeProfit, candles.length]);
 
     return (

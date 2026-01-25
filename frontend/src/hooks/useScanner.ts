@@ -2,7 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { ScanResult } from '../models';
 import { scanStocks } from '../api/tradingApi';
 
-export function useScanner(symbols: string[], enabled: boolean = true, refreshInterval?: number) {
+/**
+ * Hook to scan stocks for daytrading candidates.
+ * Initial scan happens on mount. Updates via SignalR are handled externally via setScanResults.
+ * Gracefully handles errors - dashboard will work without scanner data.
+ */
+export function useScanner(symbols: string[], enabled: boolean = true) {
     const [scanResults, setScanResults] = useState<ScanResult[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -11,32 +16,33 @@ export function useScanner(symbols: string[], enabled: boolean = true, refreshIn
     const lastSymbolsKey = useRef<string>('');
     const isScanning = useRef<boolean>(false);
     const hasInitialScan = useRef<boolean>(false);
-    const intervalRef = useRef<number | null>(null);
 
     useEffect(() => {
-        const symbolsKey = symbols.join(',');
-
-        // Don't scan if disabled or no symbols
-        if (!enabled || symbols.length === 0) {
-            console.log('useScanner: Skipping scan - enabled:', enabled, 'symbols:', symbols.length);
-            // Clear any existing interval
-            if (intervalRef.current) {
-                clearInterval(intervalRef.current);
-                intervalRef.current = null;
-            }
+        // Skip if disabled
+        if (!enabled) {
+            console.log('[useScanner] Skipping scan - not enabled');
             return;
         }
 
-        // Only scan if symbols changed
+        // Skip if no symbols - but don't show error, just return empty
+        if (symbols.length === 0) {
+            console.log('[useScanner] Skipping scan - no symbols');
+            setScanResults([]);
+            return;
+        }
+
+        const symbolsKey = symbols.join(',');
+
+        // Skip if symbols haven't changed (prevents infinite loops)
         if (symbolsKey === lastSymbolsKey.current && hasInitialScan.current) {
-            console.log('useScanner: Skipping scan - symbols unchanged:', symbolsKey);
+            console.log('[useScanner] Skipping scan - symbols unchanged');
             return;
         }
 
         const scan = async () => {
             // Skip if already scanning
             if (isScanning.current) {
-                console.log('Scan already in progress, skipping');
+                console.log('[useScanner] Scan already in progress, skipping');
                 return;
             }
 
@@ -44,7 +50,7 @@ export function useScanner(symbols: string[], enabled: boolean = true, refreshIn
             hasInitialScan.current = true;
             isScanning.current = true;
             setLoading(true);
-            setError(null);
+            // Don't clear error on retry - keep old error visible until success
 
             // Create a timeout promise
             const timeoutPromise = new Promise((_, reject) => {
@@ -52,62 +58,45 @@ export function useScanner(symbols: string[], enabled: boolean = true, refreshIn
             });
 
             try {
-                console.log('Scanning symbols:', symbols);
+                console.log('[useScanner] Scanning symbols:', symbols.length, 'symbols');
                 const results = await Promise.race([
                     scanStocks(symbols, 1),
                     timeoutPromise
                 ]) as ScanResult[];
-                console.log('Scan results:', results);
+                console.log('[useScanner] Scan results:', results.length);
                 setScanResults(results);
+                setError(null); // Clear error on success
             } catch (err) {
-                console.error('Scan error:', err);
+                console.error('[useScanner] Scan error:', err);
                 setError(err instanceof Error ? err.message : 'Failed to scan stocks');
-                // Don't clear results on error, keep old results
+                // Keep old results on error - dashboard remains functional
             } finally {
-                console.log('Scan completed, resetting isScanning flag');
+                console.log('[useScanner] Scan completed');
                 setLoading(false);
                 isScanning.current = false;
             }
         };
 
         scan();
+    }, [symbols, enabled]);
 
-        // Set up interval if refreshInterval is provided
-        if (refreshInterval && refreshInterval > 0) {
-            console.log(`useScanner: Setting up auto-refresh every ${refreshInterval}ms`);
-            intervalRef.current = setInterval(() => {
-                console.log('useScanner: Auto-refresh triggered');
-                scan();
-            }, refreshInterval);
-        }
-
-        // Cleanup interval on unmount or when dependencies change
-        return () => {
-            if (intervalRef.current) {
-                console.log('useScanner: Cleaning up auto-refresh interval');
-                clearInterval(intervalRef.current);
-                intervalRef.current = null;
-            }
-        };
-    }, [symbols, enabled, refreshInterval]);
-
-    const manualReload = useCallback(async () => {
-        console.log('Manual reload requested - enabled:', enabled, 'symbols:', symbols.length);
+    const reload = useCallback(async () => {
+        console.log('[useScanner] Manual reload requested - enabled:', enabled, 'symbols:', symbols.length);
 
         if (!enabled || symbols.length === 0) {
-            console.log('Manual reload: Skipping - not enabled or no symbols');
+            console.log('[useScanner] Manual reload: Skipping - not enabled or no symbols');
             return;
         }
 
         // Skip if already scanning
         if (isScanning.current) {
-            console.log('Manual reload: Scan already in progress, skipping');
+            console.log('[useScanner] Manual reload: Scan already in progress, skipping');
             return;
         }
 
         isScanning.current = true;
         setLoading(true);
-        setError(null);
+        // Keep old error until we know new result
 
         // Create a timeout promise
         const timeoutPromise = new Promise((_, reject) => {
@@ -115,19 +104,20 @@ export function useScanner(symbols: string[], enabled: boolean = true, refreshIn
         });
 
         try {
-            console.log('Manual reload: Scanning symbols:', symbols);
+            console.log('[useScanner] Manual reload: Scanning', symbols.length, 'symbols');
             const results = await Promise.race([
                 scanStocks(symbols, 1),
                 timeoutPromise
             ]) as ScanResult[];
-            console.log('Manual reload: Scan results:', results);
+            console.log('[useScanner] Manual reload: Scan results:', results.length);
             setScanResults(results);
+            setError(null); // Clear error on success
         } catch (err) {
-            console.error('Manual reload: Scan error:', err);
+            console.error('[useScanner] Manual reload: Scan error:', err);
             setError(err instanceof Error ? err.message : 'Failed to scan stocks');
-            // Don't clear results on error
+            // Keep old results on error
         } finally {
-            console.log('Manual reload: Scan completed, resetting isScanning flag');
+            console.log('[useScanner] Manual reload: Scan completed');
             setLoading(false);
             isScanning.current = false;
         }
@@ -137,6 +127,7 @@ export function useScanner(symbols: string[], enabled: boolean = true, refreshIn
         scanResults,
         loading,
         error,
-        reload: manualReload,
+        reload,
+        setScanResults, // Exposed for SignalR updates
     };
 }

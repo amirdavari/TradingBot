@@ -3,20 +3,63 @@ import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemButton from '@mui/material/ListItemButton';
-import ListItemText from '@mui/material/ListItemText';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
+import TextField from '@mui/material/TextField';
+import Chip from '@mui/material/Chip';
+import InputAdornment from '@mui/material/InputAdornment';
+import CircularProgress from '@mui/material/CircularProgress';
 import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import TrendingFlatIcon from '@mui/icons-material/TrendingFlat';
+import NewspaperIcon from '@mui/icons-material/Newspaper';
 import LoadingSpinner from './LoadingSpinner';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useScanner } from '../hooks/useScanner';
 import { useOpenTrades } from '../hooks/useOpenTrades';
+
+// Static company name lookup for known symbols
+const COMPANY_NAMES: Record<string, string> = {
+    // US Stocks
+    'AAPL': 'Apple', 'MSFT': 'Microsoft', 'GOOGL': 'Alphabet', 'AMZN': 'Amazon',
+    'META': 'Meta', 'NVDA': 'NVIDIA', 'TSLA': 'Tesla', 'AMD': 'AMD',
+    'NFLX': 'Netflix', 'SPY': 'S&P 500 ETF', 'QQQ': 'Nasdaq ETF',
+    // German DAX Stocks
+    'SAP.DE': 'SAP', 'SIE.DE': 'Siemens', 'ALV.DE': 'Allianz', 'BAS.DE': 'BASF',
+    'IFX.DE': 'Infineon', 'BMW.DE': 'BMW', 'MBG.DE': 'Mercedes-Benz', 'VOW3.DE': 'Volkswagen',
+    'DTE.DE': 'Dt. Telekom', 'RWE.DE': 'RWE', 'EOAN.DE': 'E.ON', 'MUV2.DE': 'Munich Re',
+    'CBK.DE': 'Commerzbank', 'DBK.DE': 'Deutsche Bank', 'ENR.DE': 'Siemens Energy',
+    'ADS.DE': 'Adidas', 'BAYN.DE': 'Bayer', 'HEI.DE': 'Heidelberg Mat.', 'ZAL.DE': 'Zalando',
+    'DB1.DE': 'Dt. Börse', 'RHM.DE': 'Rheinmetall', 'MTX.DE': 'MTU Aero', 'AIR.DE': 'Airbus',
+    'SRT3.DE': 'Sartorius', 'SY1.DE': 'Symrise', 'HEN3.DE': 'Henkel', '1COV.DE': 'Covestro',
+    'P911.DE': 'Porsche AG', 'VNA.DE': 'Vonovia', 'FRE.DE': 'Fresenius', 'HFG.DE': 'HelloFresh',
+    'DHER.DE': 'Delivery Hero', 'TMV.DE': 'TeamViewer', 'AIXA.DE': 'Aixtron', 'S92.DE': 'SMA Solar',
+    'VAR1.DE': 'Varta', 'EVT.DE': 'Evotec', 'AFX.DE': 'Carl Zeiss', 'NEM.DE': 'Nemetschek',
+    'UTDI.DE': 'United Internet', 'WAF.DE': 'Siltronic', 'JEN.DE': 'Jenoptik', 'COK.DE': 'Cancom',
+    'GFT.DE': 'GFT Tech', 'LPKF.DE': 'LPKF Laser', 'DMP.DE': 'Dermapharm', 'ECV.DE': 'Encavis',
+    'G24.DE': 'Scout24', 'EVD.DE': 'CTS Eventim', 'BOSS.DE': 'Hugo Boss', 'RAA.DE': 'Rational',
+    'GBF.DE': 'Bilfinger', 'WCH.DE': 'Wacker Chemie', 'FRA.DE': 'Fraport', 'LHA.DE': 'Lufthansa',
+    'HOT.DE': 'Hochtief', 'SZG.DE': 'Salzgitter', 'SDF.DE': 'K+S', '8TRA.DE': 'Traton',
+    'KBX.DE': 'Knorr-Bremse', 'BEI.DE': 'Beiersdorf', 'HNR1.DE': 'Hannover Rück', 'BNR.DE': 'Brenntag',
+    'SHL.DE': 'Siemens Health.', 'FME.DE': 'Fresenius MC', 'MRK.DE': 'Merck KGaA', 'QIA.DE': 'Qiagen',
+    'PAH3.DE': 'Porsche SE', 'LEG.DE': 'LEG Immobilien', 'TEG.DE': 'TAG Immobilien', 'EVK.DE': 'Evonik',
+    'KGX.DE': 'KION Group', 'G1A.DE': 'GEA Group', 'TLX.DE': 'Talanx', 'RRTL.DE': 'RTL Group',
+    'FNTN.DE': 'Freenet', 'SGL.DE': 'SGL Carbon', 'NOEJ.DE': 'Norma Group', 'STM.DE': 'Stabilus',
+    'VOS.DE': 'Vossloh', 'SHA.DE': 'Schaeffler', 'PFV.DE': 'Pfeiffer Vacuum', 'FIE.DE': 'Fielmann',
+    'COP.DE': 'Compugroup Med.', 'DWNI.DE': 'Deutsche Wohnen', 'NA9.DE': 'Nagarro', 'SOW.DE': 'Software AG',
+    'HYQ.DE': 'Hypoport', 'ILM1.DE': 'Medios', 'ZIL2.DE': 'ElringKlinger', 'DUE.DE': 'Dürr',
+    'SPG.DE': 'Springer Nature', 'JUN3.DE': 'Jungheinrich', 'GYC.DE': 'Grand City Prop.', 'NDA.DE': 'Aurubis',
+    'SMHN.DE': 'Süss MicroTec',
+};
 
 interface WatchlistPanelProps {
     selectedSymbol: string;
@@ -24,12 +67,16 @@ interface WatchlistPanelProps {
 }
 
 export default function WatchlistPanel({ selectedSymbol, onSymbolChange }: WatchlistPanelProps) {
-    const { watchlist, loading, deleteSymbol } = useWatchlist();
+    const { watchlist, loading, addSymbol, deleteSymbol } = useWatchlist();
     const symbols = watchlist.map((item) => item.symbol);
-    // Refresh scanner results every 10 seconds (10000ms)
-    const { scanResults } = useScanner(symbols, symbols.length > 0, 10000);
-    const { trades } = useOpenTrades(5000);
+    // Scanner results updated via SignalR (no polling needed)
+    const { scanResults, loading: scanLoading, reload: reloadScanner } = useScanner(symbols, symbols.length > 0);
+    const { trades } = useOpenTrades(); // Uses SignalR for real-time updates
     const [deletingSymbol, setDeletingSymbol] = useState<string | null>(null);
+    const [newSymbol, setNewSymbol] = useState('');
+    const [newCompanyName, setNewCompanyName] = useState('');
+    const [isAdding, setIsAdding] = useState(false);
+    const [showAddForm, setShowAddForm] = useState(false);
 
     // Create a lookup map for quick result access
     const resultMap = new Map(scanResults.map((result) => [result.symbol, result]));
@@ -61,73 +108,223 @@ export default function WatchlistPanel({ selectedSymbol, onSymbolChange }: Watch
         }
     };
 
+    const handleAddSymbol = async () => {
+        if (!newSymbol.trim()) return;
+
+        setIsAdding(true);
+        try {
+            await addSymbol(newSymbol.trim().toUpperCase(), newCompanyName.trim() || undefined);
+            setNewSymbol('');
+            setNewCompanyName('');
+            setShowAddForm(false);
+        } catch (error) {
+            console.error('Failed to add symbol:', error);
+            alert(`Failed to add ${newSymbol}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        } finally {
+            setIsAdding(false);
+        }
+    };
+
+    const handleKeyPress = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleAddSymbol();
+        } else if (e.key === 'Escape') {
+            setShowAddForm(false);
+            setNewSymbol('');
+            setNewCompanyName('');
+        }
+    };
+
+    const getVolumeColor = (volumeStatus: string) => {
+        switch (volumeStatus) {
+            case 'HIGH': return 'success';
+            case 'MEDIUM': return 'warning';
+            default: return 'default';
+        }
+    };
+
+    const getTrendIcon = (trend: string) => {
+        switch (trend) {
+            case 'LONG': return <TrendingUpIcon fontSize="small" sx={{ color: 'success.main' }} />;
+            case 'SHORT': return <TrendingDownIcon fontSize="small" sx={{ color: 'error.main' }} />;
+            default: return <TrendingFlatIcon fontSize="small" sx={{ color: 'text.secondary' }} />;
+        }
+    };
+
     return (
-        <Paper sx={{ width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%' }}>
-            <Box sx={{ p: 2, pb: 1, flexShrink: 0 }}>
-                <Typography variant="h6">Watchlist</Typography>
+        <Paper
+            sx={{
+                width: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                height: '100%',
+                borderRadius: 2,
+                bgcolor: 'background.paper'
+            }}
+            elevation={2}
+        >
+            {/* Header */}
+            <Box sx={{ p: 2, pb: 1, flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>Watchlist</Typography>
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    <Tooltip title="Refresh scanner data">
+                        <IconButton size="small" onClick={reloadScanner} disabled={scanLoading || symbols.length === 0}>
+                            {scanLoading ? <CircularProgress size={18} /> : <RefreshIcon fontSize="small" />}
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Add symbol">
+                        <IconButton size="small" onClick={() => setShowAddForm(!showAddForm)} color={showAddForm ? 'primary' : 'default'}>
+                            <AddIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                </Box>
             </Box>
+
+            {/* Add Symbol Form */}
+            {showAddForm && (
+                <Box sx={{ px: 2, pb: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <TextField
+                        size="small"
+                        placeholder="Symbol (e.g. AAPL)"
+                        value={newSymbol}
+                        onChange={(e) => setNewSymbol(e.target.value.toUpperCase())}
+                        onKeyDown={handleKeyPress}
+                        disabled={isAdding}
+                        autoFocus
+                        InputProps={{
+                            endAdornment: (
+                                <InputAdornment position="end">
+                                    <IconButton
+                                        size="small"
+                                        onClick={handleAddSymbol}
+                                        disabled={!newSymbol.trim() || isAdding}
+                                        color="primary"
+                                    >
+                                        {isAdding ? <CircularProgress size={18} /> : <AddIcon fontSize="small" />}
+                                    </IconButton>
+                                </InputAdornment>
+                            ),
+                        }}
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                    />
+                    <TextField
+                        size="small"
+                        placeholder="Company Name (optional)"
+                        value={newCompanyName}
+                        onChange={(e) => setNewCompanyName(e.target.value)}
+                        onKeyDown={handleKeyPress}
+                        disabled={isAdding}
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                    />
+                </Box>
+            )}
+
             <Divider />
+
+            {/* Table */}
             <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
                 {loading ? (
                     <Box sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
                         <LoadingSpinner />
                     </Box>
+                ) : watchlist.length === 0 ? (
+                    <Box sx={{ p: 3, textAlign: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">
+                            No symbols in watchlist
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            Click + to add a symbol
+                        </Typography>
+                    </Box>
                 ) : (
-                    <List dense>
-                        {watchlist.map((item) => {
-                            const result = resultMap.get(item.symbol);
-                            const hasOpenTrades = symbolsWithOpenTrades.has(item.symbol);
-                            const isDeleting = deletingSymbol === item.symbol;
+                    <TableContainer>
+                        <Table size="small" stickyHeader>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 1 }}>Symbol</TableCell>
+                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 1 }}>Company</TableCell>
+                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 1, width: 50 }} align="center">Vol</TableCell>
+                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 1, width: 40 }} align="center">
+                                        <Tooltip title="Trend"><span>T</span></Tooltip>
+                                    </TableCell>
+                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 1, width: 40 }} align="center">
+                                        <Tooltip title="Confidence"><span>C</span></Tooltip>
+                                    </TableCell>
+                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 1, width: 30 }} align="center">
+                                        <Tooltip title="Has News"><NewspaperIcon fontSize="small" /></Tooltip>
+                                    </TableCell>
+                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 1, width: 40 }} align="right"></TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {watchlist.map((item) => {
+                                    const result = resultMap.get(item.symbol);
+                                    const hasOpenTrades = symbolsWithOpenTrades.has(item.symbol);
+                                    const isDeleting = deletingSymbol === item.symbol;
+                                    const isSelected = selectedSymbol === item.symbol;
 
-                            return (
-                                <ListItem
-                                    key={item.symbol}
-                                    disablePadding
-                                    secondaryAction={
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                            {result && !result.hasError && (
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    return (
+                                        <TableRow
+                                            key={item.symbol}
+                                            hover
+                                            selected={isSelected}
+                                            onClick={() => onSymbolChange(item.symbol)}
+                                            sx={{
+                                                cursor: 'pointer',
+                                                '&:hover': { bgcolor: 'action.hover' },
+                                                '&.Mui-selected': {
+                                                    bgcolor: 'primary.dark',
+                                                    '&:hover': { bgcolor: 'primary.dark' }
+                                                },
+                                                transition: 'background-color 0.15s'
+                                            }}
+                                        >
+                                            <TableCell sx={{ py: 0.75, fontWeight: isSelected ? 600 : 400 }}>
+                                                {item.symbol}
+                                            </TableCell>
+                                            <TableCell sx={{ py: 0.75, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                <Tooltip title={item.companyName || COMPANY_NAMES[item.symbol] || item.symbol}>
+                                                    <Typography variant="caption" color="text.secondary" noWrap>
+                                                        {item.companyName || COMPANY_NAMES[item.symbol] || '—'}
+                                                    </Typography>
+                                                </Tooltip>
+                                            </TableCell>
+                                            <TableCell align="center" sx={{ py: 0.75 }}>
+                                                {result && !result.hasError ? (
+                                                    <Chip
+                                                        label={result.volumeStatus}
+                                                        size="small"
+                                                        color={getVolumeColor(result.volumeStatus) as 'success' | 'warning' | 'default'}
+                                                        sx={{
+                                                            height: 20,
+                                                            fontSize: '0.65rem',
+                                                            '& .MuiChip-label': { px: 0.75 }
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <Typography variant="caption" color="text.disabled">—</Typography>
+                                                )}
+                                            </TableCell>
+                                            <TableCell align="center" sx={{ py: 0.75 }}>
+                                                {result && !result.hasError ? (
                                                     <Tooltip title={`Trend: ${result.trend}`}>
-                                                        <Box
-                                                            sx={{
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                color:
-                                                                    result.trend === 'LONG'
-                                                                        ? 'success.main'
-                                                                        : result.trend === 'SHORT'
-                                                                        ? 'error.main'
-                                                                        : 'text.secondary',
-                                                            }}
-                                                        >
-                                                            {result.trend === 'LONG' ? (
-                                                                <TrendingUpIcon fontSize="small" />
-                                                            ) : result.trend === 'SHORT' ? (
-                                                                <TrendingDownIcon fontSize="small" />
-                                                            ) : (
-                                                                <TrendingFlatIcon fontSize="small" />
-                                                            )}
-                                                        </Box>
+                                                        {getTrendIcon(result.trend)}
                                                     </Tooltip>
-                                                    <Tooltip
-                                                        title={`Confidence: ${result.confidence} (${
-                                                            result.confidence >= 75
-                                                                ? 'GOOD'
-                                                                : result.confidence >= 60
-                                                                ? 'WATCH'
-                                                                : 'SKIP'
-                                                        })`}
-                                                    >
+                                                ) : (
+                                                    <Typography variant="caption" color="text.disabled">—</Typography>
+                                                )}
+                                            </TableCell>
+                                            <TableCell align="center" sx={{ py: 0.75 }}>
+                                                {result && !result.hasError ? (
+                                                    <Tooltip title={`Confidence: ${result.confidence}%`}>
                                                         <Typography
                                                             variant="caption"
                                                             sx={{
-                                                                fontWeight: 'bold',
-                                                                minWidth: 24,
-                                                                textAlign: 'center',
-                                                                color:
-                                                                    result.confidence >= 75
-                                                                        ? 'success.main'
-                                                                        : result.confidence >= 60
+                                                                fontWeight: 600,
+                                                                color: result.confidence >= 75
+                                                                    ? 'success.main'
+                                                                    : result.confidence >= 60
                                                                         ? 'warning.main'
                                                                         : 'error.main',
                                                             }}
@@ -135,46 +332,51 @@ export default function WatchlistPanel({ selectedSymbol, onSymbolChange }: Watch
                                                             {result.confidence}
                                                         </Typography>
                                                     </Tooltip>
-                                                </Box>
-                                            )}
-                                            <Tooltip
-                                                title={
-                                                    hasOpenTrades
-                                                        ? 'Cannot remove: Symbol has open trades'
-                                                        : 'Remove from watchlist'
-                                                }
-                                            >
-                                                <span>
-                                                    <IconButton
-                                                        edge="end"
-                                                        aria-label="delete"
-                                                        size="small"
-                                                        onClick={(e) => handleDelete(e, item.symbol)}
-                                                        disabled={hasOpenTrades || isDeleting || loading}
-                                                        sx={{
-                                                            opacity: hasOpenTrades ? 0.3 : 1,
-                                                            '&:hover': {
-                                                                color: hasOpenTrades ? 'inherit' : 'error.main'
-                                                            }
-                                                        }}
-                                                    >
-                                                        <DeleteIcon fontSize="small" />
-                                                    </IconButton>
-                                                </span>
-                                            </Tooltip>
-                                        </Box>
-                                    }
-                                >
-                                    <ListItemButton
-                                        selected={selectedSymbol === item.symbol}
-                                        onClick={() => onSymbolChange(item.symbol)}
-                                    >
-                                        <ListItemText primary={item.symbol} />
-                                    </ListItemButton>
-                                </ListItem>
-                            );
-                        })}
-                    </List>
+                                                ) : (
+                                                    <Typography variant="caption" color="text.disabled">—</Typography>
+                                                )}
+                                            </TableCell>
+                                            <TableCell align="center" sx={{ py: 0.75 }}>
+                                                {result && !result.hasError && result.hasNews ? (
+                                                    <Tooltip title="Has recent news">
+                                                        <NewspaperIcon fontSize="small" color="info" />
+                                                    </Tooltip>
+                                                ) : (
+                                                    <Typography variant="caption" color="text.disabled">—</Typography>
+                                                )}
+                                            </TableCell>
+                                            <TableCell align="right" sx={{ py: 0.75 }}>
+                                                <Tooltip
+                                                    title={
+                                                        hasOpenTrades
+                                                            ? 'Cannot remove: Symbol has open trades'
+                                                            : 'Remove from watchlist'
+                                                    }
+                                                >
+                                                    <span>
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={(e) => handleDelete(e, item.symbol)}
+                                                            disabled={hasOpenTrades || isDeleting || loading}
+                                                            sx={{
+                                                                opacity: hasOpenTrades ? 0.3 : 0.7,
+                                                                '&:hover': {
+                                                                    color: hasOpenTrades ? 'inherit' : 'error.main',
+                                                                    opacity: 1
+                                                                }
+                                                            }}
+                                                        >
+                                                            <DeleteIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </span>
+                                                </Tooltip>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
                 )}
             </Box>
         </Paper>

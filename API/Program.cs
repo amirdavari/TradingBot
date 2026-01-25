@@ -1,4 +1,5 @@
 using API.Data;
+using API.Hubs;
 using API.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,14 +12,18 @@ builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-// Configure CORS
+// Add SignalR for real-time updates
+builder.Services.AddSignalR();
+
+// Configure CORS (AllowCredentials required for SignalR)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy.WithOrigins("http://localhost:5173", "http://localhost:5174")
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
 
@@ -43,7 +48,7 @@ builder.Services.AddScoped<INewsProvider>(sp =>
 {
     var timeProvider = sp.GetRequiredService<IMarketTimeProvider>();
     var mode = timeProvider.GetMode();
-    
+
     if (mode == API.Models.MarketMode.Replay)
     {
         var mockProvider = sp.GetRequiredService<MockNewsProvider>();
@@ -62,14 +67,14 @@ builder.Services.AddScoped<IMarketDataProvider>(sp =>
 {
     var timeProvider = sp.GetRequiredService<IMarketTimeProvider>();
     var mode = timeProvider.GetMode();
-    
+
     if (mode == API.Models.MarketMode.Replay)
     {
         var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
         var httpClient = httpClientFactory.CreateClient(nameof(YahooFinanceMarketDataProvider));
         var yahooLogger = sp.GetRequiredService<ILogger<YahooFinanceMarketDataProvider>>();
         var yahooProvider = new YahooFinanceMarketDataProvider(httpClient, yahooLogger, timeProvider);
-        
+
         var replayLogger = sp.GetRequiredService<ILogger<YahooReplayMarketDataProvider>>();
         return new YahooReplayMarketDataProvider(yahooProvider, timeProvider, replayLogger);
     }
@@ -79,7 +84,7 @@ builder.Services.AddScoped<IMarketDataProvider>(sp =>
     }
 });
 
-builder.Services.AddSingleton<MarketTimeProvider>(sp => 
+builder.Services.AddSingleton<MarketTimeProvider>(sp =>
     (MarketTimeProvider)sp.GetRequiredService<IMarketTimeProvider>());
 
 // Register Replay Clock Service (Background Service)
@@ -118,10 +123,18 @@ if (app.Environment.IsDevelopment())
 // Use CORS
 app.UseCors("AllowFrontend");
 
-app.UseHttpsRedirection();
+// Only use HTTPS redirection in production
+// In development, we want to support both HTTP and HTTPS for easier debugging
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Map SignalR Hub
+app.MapHub<TradingHub>("/hubs/trading");
 
 app.Run();

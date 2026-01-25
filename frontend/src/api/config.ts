@@ -4,7 +4,7 @@ export const API_CONFIG = {
     baseURL: API_BASE_URL,
     endpoints: {
         signals: (symbol: string, timeframe?: number) =>
-            `/api/signals/${symbol}${timeframe ? `?timeframe=${timeframe}` : ''}`,
+            `/api/signals/${encodeURIComponent(symbol)}${timeframe ? `?timeframe=${timeframe}` : ''}`,
         scanner: (symbols?: string[], timeframe?: number) => {
             const params = new URLSearchParams();
             if (symbols?.length) {
@@ -23,14 +23,14 @@ export const API_CONFIG = {
             if (period) {
                 params.append('period', period);
             }
-            return `/api/candles/${symbol}${params.toString() ? `?${params}` : ''}`;
+            return `/api/candles/${encodeURIComponent(symbol)}${params.toString() ? `?${params}` : ''}`;
         },
         news: (symbol: string, count?: number) => {
             const params = new URLSearchParams();
             if (count) {
                 params.append('count', count.toString());
             }
-            return `/api/news/${symbol}${params.toString() ? `?${params}` : ''}`;
+            return `/api/news/${encodeURIComponent(symbol)}${params.toString() ? `?${params}` : ''}`;
         },
         replay: {
             state: '/api/replay/state',

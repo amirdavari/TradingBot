@@ -40,6 +40,7 @@ export interface ScanResult {
 export interface WatchlistSymbol {
     id: number;
     symbol: string;
+    companyName?: string;
     createdAt: string;
 }
 

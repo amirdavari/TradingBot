@@ -14,6 +14,11 @@ public class WatchlistSymbol
     public required string Symbol { get; set; }
 
     /// <summary>
+    /// Company name (e.g., "Apple Inc.").
+    /// </summary>
+    public string? CompanyName { get; set; }
+
+    /// <summary>
     /// Timestamp when symbol was added to watchlist.
     /// </summary>
     public DateTime CreatedAt { get; set; }

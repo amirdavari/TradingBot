@@ -86,10 +86,10 @@ Managed by [PaperTradeService.cs](API/Services/PaperTradeService.cs):
 
 ### Replay/Simulation Mode
 Time-traveling for backtesting (see [Phase_10.7_Persistence_Implementation.md](docs/Phase_10.7_Persistence_Implementation.md)):
-- **ReplayClockService** (background service): Advances `CurrentTime` at configurable speed
+- **ReplayClockService** (background service): Advances `CurrentTime` at configurable speed, pushes SignalR updates
 - **State persistence**: Saved to DB on every change, loaded on startup
 - **Data filtering**: Yahoo providers filter historical data by `CurrentTime`
-- **Frontend refresh**: `useReplayRefresh` hook polls when replay is running
+- **Real-time updates**: SignalR pushes `ReceiveReplayState`, `ReceiveChartRefresh`, and `ReceiveScanResults` during replay
 
 ## Critical Patterns
 

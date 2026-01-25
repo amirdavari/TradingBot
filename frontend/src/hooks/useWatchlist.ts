@@ -19,10 +19,10 @@ export function useWatchlist() {
         }
     };
 
-    const addSymbol = async (symbol: string) => {
+    const addSymbol = async (symbol: string, companyName?: string) => {
         setError(null);
         try {
-            const newSymbol = await addSymbolApi(symbol);
+            const newSymbol = await addSymbolApi(symbol, companyName);
             setWatchlist(prev => [...prev, newSymbol].sort((a, b) => a.symbol.localeCompare(b.symbol)));
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : 'Failed to add symbol';
