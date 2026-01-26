@@ -1,6 +1,8 @@
+using API.Hubs;
 using API.Models;
 using API.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 
 namespace API.Controllers;
 
@@ -14,15 +16,18 @@ public class ReplayController : ControllerBase
 {
     private readonly MarketTimeProvider _timeProvider;
     private readonly ReplayClockService _clockService;
+    private readonly IHubContext<TradingHub> _hubContext;
     private readonly ILogger<ReplayController> _logger;
 
     public ReplayController(
         MarketTimeProvider timeProvider,
         ReplayClockService clockService,
+        IHubContext<TradingHub> hubContext,
         ILogger<ReplayController> logger)
     {
         _timeProvider = timeProvider;
         _clockService = clockService;
+        _hubContext = hubContext;
         _logger = logger;
     }
 
@@ -170,7 +175,14 @@ public class ReplayController : ControllerBase
 
         _logger.LogInformation("Market mode set to {Mode} via API (cache cleared)", request.Mode);
 
-        return Ok(new { message = $"Mode set to {request.Mode}", state = GetStateResponse() });
+        // Broadcast mode change via SignalR to notify all clients
+        var stateResponse = GetStateResponse();
+        await _hubContext.Clients.All.SendAsync(TradingHubMethods.ReceiveReplayState, stateResponse);
+
+        // Trigger chart refresh for all symbols after mode change
+        await _hubContext.Clients.All.SendAsync(TradingHubMethods.ReceiveChartRefresh, new { symbols = Array.Empty<string>() });
+
+        return Ok(new { message = $"Mode set to {request.Mode}", state = stateResponse });
     }
 
     /// <summary>

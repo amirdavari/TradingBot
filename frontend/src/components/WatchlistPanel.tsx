@@ -9,6 +9,7 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import TableSortLabel from '@mui/material/TableSortLabel';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import TextField from '@mui/material/TextField';
@@ -77,12 +78,58 @@ export default function WatchlistPanel({ selectedSymbol, onSymbolChange }: Watch
     const [newCompanyName, setNewCompanyName] = useState('');
     const [isAdding, setIsAdding] = useState(false);
     const [showAddForm, setShowAddForm] = useState(false);
+    const [orderBy, setOrderBy] = useState<'symbol' | 'company' | 'volume' | 'trend' | 'confidence'>('symbol');
+    const [order, setOrder] = useState<'asc' | 'desc'>('asc');
 
     // Create a lookup map for quick result access
     const resultMap = new Map(scanResults.map((result) => [result.symbol, result]));
 
     // Create a set of symbols with open trades
     const symbolsWithOpenTrades = new Set(trades.map(trade => trade.symbol));
+
+    // Sort handler
+    const handleSort = (column: 'symbol' | 'company' | 'volume' | 'trend' | 'confidence') => {
+        const isAsc = orderBy === column && order === 'asc';
+        setOrder(isAsc ? 'desc' : 'asc');
+        setOrderBy(column);
+    };
+
+    // Sort watchlist
+    const sortedWatchlist = [...watchlist].sort((a, b) => {
+        const resultA = resultMap.get(a.symbol);
+        const resultB = resultMap.get(b.symbol);
+        let comparison = 0;
+
+        switch (orderBy) {
+            case 'symbol':
+                comparison = a.symbol.localeCompare(b.symbol);
+                break;
+            case 'company':
+                const nameA = a.companyName || COMPANY_NAMES[a.symbol] || a.symbol;
+                const nameB = b.companyName || COMPANY_NAMES[b.symbol] || b.symbol;
+                comparison = nameA.localeCompare(nameB);
+                break;
+            case 'volume':
+                const volOrder = { 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1, 'NONE': 0 };
+                const volA = resultA?.volumeStatus ? volOrder[resultA.volumeStatus as keyof typeof volOrder] || 0 : 0;
+                const volB = resultB?.volumeStatus ? volOrder[resultB.volumeStatus as keyof typeof volOrder] || 0 : 0;
+                comparison = volA - volB;
+                break;
+            case 'trend':
+                const trendOrder = { 'LONG': 1, 'NONE': 0, 'SHORT': -1 };
+                const trendA = resultA?.trend ? trendOrder[resultA.trend as keyof typeof trendOrder] || 0 : 0;
+                const trendB = resultB?.trend ? trendOrder[resultB.trend as keyof typeof trendOrder] || 0 : 0;
+                comparison = trendA - trendB;
+                break;
+            case 'confidence':
+                const confA = resultA?.confidence || 0;
+                const confB = resultB?.confidence || 0;
+                comparison = confA - confB;
+                break;
+        }
+
+        return order === 'asc' ? comparison : -comparison;
+    });
 
     const handleDelete = async (e: React.MouseEvent, symbol: string) => {
         e.stopPropagation();
@@ -238,27 +285,67 @@ export default function WatchlistPanel({ selectedSymbol, onSymbolChange }: Watch
                         </Typography>
                     </Box>
                 ) : (
-                    <TableContainer>
+                    <TableContainer sx={{ maxHeight: '100%', overflow: 'auto' }}>
                         <Table size="small" stickyHeader>
                             <TableHead>
                                 <TableRow>
-                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 1 }}>Symbol</TableCell>
-                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 1 }}>Company</TableCell>
-                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 1, width: 50 }} align="center">Vol</TableCell>
-                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 1, width: 40 }} align="center">
-                                        <Tooltip title="Trend"><span>T</span></Tooltip>
+                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 0.5, fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                                        <TableSortLabel
+                                            active={orderBy === 'symbol'}
+                                            direction={orderBy === 'symbol' ? order : 'asc'}
+                                            onClick={() => handleSort('symbol')}
+                                        >
+                                            Symbol
+                                        </TableSortLabel>
                                     </TableCell>
-                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 1, width: 40 }} align="center">
-                                        <Tooltip title="Confidence"><span>C</span></Tooltip>
+                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper' }}>
+                                        <TableSortLabel
+                                            active={orderBy === 'company'}
+                                            direction={orderBy === 'company' ? order : 'asc'}
+                                            onClick={() => handleSort('company')}
+                                        >
+                                            Company
+                                        </TableSortLabel>
                                     </TableCell>
-                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 1, width: 30 }} align="center">
+                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 0.5, width: 70, fontSize: '0.75rem' }} align="center">
+                                        <TableSortLabel
+                                            active={orderBy === 'volume'}
+                                            direction={orderBy === 'volume' ? order : 'asc'}
+                                            onClick={() => handleSort('volume')}
+                                        >
+                                            Vol
+                                        </TableSortLabel>
+                                    </TableCell>
+                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 0.5, width: 40, fontSize: '0.75rem' }} align="center">
+                                        <Tooltip title="Trend">
+                                            <TableSortLabel
+                                                active={orderBy === 'trend'}
+                                                direction={orderBy === 'trend' ? order : 'asc'}
+                                                onClick={() => handleSort('trend')}
+                                            >
+                                                T
+                                            </TableSortLabel>
+                                        </Tooltip>
+                                    </TableCell>
+                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 0.5, width: 40, fontSize: '0.75rem' }} align="center">
+                                        <Tooltip title="Confidence">
+                                            <TableSortLabel
+                                                active={orderBy === 'confidence'}
+                                                direction={orderBy === 'confidence' ? order : 'asc'}
+                                                onClick={() => handleSort('confidence')}
+                                            >
+                                                C
+                                            </TableSortLabel>
+                                        </Tooltip>
+                                    </TableCell>
+                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 0.5, width: 40, fontSize: '0.75rem' }} align="center">
                                         <Tooltip title="Has News"><NewspaperIcon fontSize="small" /></Tooltip>
                                     </TableCell>
-                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 1, width: 40 }} align="right"></TableCell>
+                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 0.5, width: 40 }} align="right"></TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {watchlist.map((item) => {
+                                {sortedWatchlist.map((item) => {
                                     const result = resultMap.get(item.symbol);
                                     const hasOpenTrades = symbolsWithOpenTrades.has(item.symbol);
                                     const isDeleting = deletingSymbol === item.symbol;
@@ -280,33 +367,33 @@ export default function WatchlistPanel({ selectedSymbol, onSymbolChange }: Watch
                                                 transition: 'background-color 0.15s'
                                             }}
                                         >
-                                            <TableCell sx={{ py: 0.75, fontWeight: isSelected ? 600 : 400 }}>
+                                            <TableCell sx={{ py: 0.5, fontWeight: isSelected ? 600 : 400, fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
                                                 {item.symbol}
                                             </TableCell>
-                                            <TableCell sx={{ py: 0.75, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            <TableCell sx={{ py: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                 <Tooltip title={item.companyName || COMPANY_NAMES[item.symbol] || item.symbol}>
                                                     <Typography variant="caption" color="text.secondary" noWrap>
                                                         {item.companyName || COMPANY_NAMES[item.symbol] || '—'}
                                                     </Typography>
                                                 </Tooltip>
                                             </TableCell>
-                                            <TableCell align="center" sx={{ py: 0.75 }}>
+                                            <TableCell align="center">
                                                 {result && !result.hasError ? (
                                                     <Chip
                                                         label={result.volumeStatus}
                                                         size="small"
                                                         color={getVolumeColor(result.volumeStatus) as 'success' | 'warning' | 'default'}
                                                         sx={{
-                                                            height: 20,
-                                                            fontSize: '0.65rem',
-                                                            '& .MuiChip-label': { px: 0.75 }
+                                                            height: 18,
+                                                            fontSize: '0.6rem',
+                                                            '& .MuiChip-label': { px: 0.5 }
                                                         }}
                                                     />
                                                 ) : (
                                                     <Typography variant="caption" color="text.disabled">—</Typography>
                                                 )}
                                             </TableCell>
-                                            <TableCell align="center" sx={{ py: 0.75 }}>
+                                            <TableCell align="center" sx={{ py: 0.5 }}>
                                                 {result && !result.hasError ? (
                                                     <Tooltip title={`Trend: ${result.trend}`}>
                                                         {getTrendIcon(result.trend)}
@@ -315,7 +402,7 @@ export default function WatchlistPanel({ selectedSymbol, onSymbolChange }: Watch
                                                     <Typography variant="caption" color="text.disabled">—</Typography>
                                                 )}
                                             </TableCell>
-                                            <TableCell align="center" sx={{ py: 0.75 }}>
+                                            <TableCell align="center">
                                                 {result && !result.hasError ? (
                                                     <Tooltip title={`Confidence: ${result.confidence}%`}>
                                                         <Typography
@@ -336,7 +423,7 @@ export default function WatchlistPanel({ selectedSymbol, onSymbolChange }: Watch
                                                     <Typography variant="caption" color="text.disabled">—</Typography>
                                                 )}
                                             </TableCell>
-                                            <TableCell align="center" sx={{ py: 0.75 }}>
+                                            <TableCell align="center">
                                                 {result && !result.hasError && result.hasNews ? (
                                                     <Tooltip title="Has recent news">
                                                         <NewspaperIcon fontSize="small" color="info" />
@@ -345,7 +432,7 @@ export default function WatchlistPanel({ selectedSymbol, onSymbolChange }: Watch
                                                     <Typography variant="caption" color="text.disabled">—</Typography>
                                                 )}
                                             </TableCell>
-                                            <TableCell align="right" sx={{ py: 0.75 }}>
+                                            <TableCell align="right" sx={{ py: 0.25 }}>
                                                 <Tooltip
                                                     title={
                                                         hasOpenTrades

@@ -246,7 +246,7 @@ export default function Dashboard() {
             {/* Main Content */}
             <Grid container spacing={1} sx={{ flexShrink: 0, height: '65vh', minHeight: '500px' }}>
                 {/* Watchlist Panel */}
-                <Grid size={3} sx={{ height: '100%', display: 'flex' }}>
+                <Grid size={3.5} sx={{ height: '100%', display: 'flex' }}>
                     <WatchlistPanel
                         selectedSymbol={selectedSymbol}
                         onSymbolChange={handleSymbolChange}
@@ -270,7 +270,7 @@ export default function Dashboard() {
                 </Grid>
 
                 {/* Trade Setup Panel */}
-                <Grid size={3} sx={{ height: '100%', display: 'flex' }}>
+                <Grid size={2.5} sx={{ height: '100%', display: 'flex' }}>
                     <TradeSetupPanel
                         signal={signal}
                         symbol={selectedSymbol}
