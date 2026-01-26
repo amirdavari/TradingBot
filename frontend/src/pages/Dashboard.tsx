@@ -9,6 +9,7 @@ import { OpenTradesPanel } from '../components/OpenTradesPanel';
 import { getCandles, getSignal, getNews, getAccount, createTrade } from '../api/tradingApi';
 import type { Candle, TradeSignal, NewsItem, Account, RiskCalculation } from '../models';
 import { useSignalRChartRefresh, useSignalRAccountUpdate } from '../hooks/useSignalR';
+import { useReplayState } from '../hooks/useReplayState';
 
 export default function Dashboard() {
     const { symbol: urlSymbol } = useParams<{ symbol: string }>();
@@ -21,6 +22,10 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(false);
     const [newsLoading, setNewsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Get replay state to determine if we're in Live mode
+    const { state: replayState } = useReplayState();
+    const isLiveMode = replayState?.mode === 'LIVE';
 
     console.log('[Dashboard] State:', {
         selectedSymbol,
@@ -93,6 +98,28 @@ export default function Dashboard() {
     }, [refreshData]);
 
     useSignalRChartRefresh(handleChartRefresh);
+
+    // Polling for Live mode - refresh chart data every 60 seconds
+    // In Replay mode, SignalR pushes updates so no polling needed
+    useEffect(() => {
+        if (!isLiveMode) {
+            console.log('[Dashboard] Not in Live mode, skipping polling');
+            return; // Only poll in Live mode
+        }
+
+        console.log('[Dashboard] Starting Live mode polling (60s interval)');
+        const pollInterval = setInterval(() => {
+            if (hasInitialFetch.current && !loadingRef.current) {
+                console.log('[Dashboard] Live mode poll - refreshing data');
+                refreshData();
+            }
+        }, 1000); // Poll every 1 second
+
+        return () => {
+            console.log('[Dashboard] Stopping Live mode polling');
+            clearInterval(pollInterval);
+        };
+    }, [isLiveMode, refreshData]);
 
     // Real-time account updates via SignalR
     const handleAccountUpdate = useCallback((updatedAccount: Account) => {
