@@ -56,6 +56,13 @@ export interface ScenarioState {
     isEnabled: boolean;
     activeConfig: ScenarioConfig | null;
     availablePresets: string[];
+    symbolAssignments: SymbolScenarioAssignment[];
+}
+
+export interface SymbolScenarioAssignment {
+    symbol: string;
+    scenarioPreset: string;
+    strategy: string;
 }
 
 // =============================================================================
@@ -68,6 +75,7 @@ const SCENARIO_ENDPOINTS = {
     apply: (name: string) => `/api/scenario/apply/${encodeURIComponent(name)}`,
     custom: '/api/scenario/custom',
     reset: '/api/scenario/reset',
+    redistribute: '/api/scenario/redistribute',
     enabled: (enabled: boolean) => `/api/scenario/enabled/${enabled}`,
 };
 
@@ -122,6 +130,15 @@ export async function resetScenario(): Promise<void> {
  */
 export async function setScenarioEnabled(enabled: boolean): Promise<void> {
     await fetchWithConfig<void>(SCENARIO_ENDPOINTS.enabled(enabled), {
+        method: 'POST',
+    });
+}
+
+/**
+ * Redistribute scenarios randomly to all symbols
+ */
+export async function redistributeScenarios(): Promise<ScenarioState> {
+    return fetchWithConfig<ScenarioState>(SCENARIO_ENDPOINTS.redistribute, {
         method: 'POST',
     });
 }

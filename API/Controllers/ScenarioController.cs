@@ -85,4 +85,27 @@ public class ScenarioController : ControllerBase
         await _hubContext.Clients.All.SendAsync(TradingHubMethods.ReceiveScenarioChange, state);
         return Ok(state);
     }
+
+    /// <summary>
+    /// Redistributes scenarios randomly to all symbols.
+    /// </summary>
+    [HttpPost("redistribute")]
+    public async Task<ActionResult<ScenarioStateDto>> RedistributeScenarios()
+    {
+        _scenarioService.RedistributeScenarios();
+        var state = await _scenarioService.GetStateAsync();
+        await _hubContext.Clients.All.SendAsync(TradingHubMethods.ReceiveScenarioChange, state);
+        await _hubContext.Clients.All.SendAsync(TradingHubMethods.ReceiveChartRefresh, new { symbols = Array.Empty<string>() });
+        return Ok(state);
+    }
+
+    /// <summary>
+    /// Gets symbol-to-scenario assignments.
+    /// </summary>
+    [HttpGet("symbol-assignments")]
+    public ActionResult<List<SymbolScenarioAssignment>> GetSymbolAssignments()
+    {
+        var assignments = _scenarioService.GetSymbolAssignments();
+        return Ok(assignments);
+    }
 }

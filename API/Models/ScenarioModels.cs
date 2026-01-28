@@ -284,6 +284,17 @@ public class ScenarioStateDto
     public bool IsEnabled { get; set; }
     public ScenarioConfig? ActiveConfig { get; set; }
     public List<string> AvailablePresets { get; set; } = new();
+    public List<SymbolScenarioAssignment> SymbolAssignments { get; set; } = new();
+}
+
+/// <summary>
+/// DTO for symbol-to-scenario assignment
+/// </summary>
+public class SymbolScenarioAssignment
+{
+    public string Symbol { get; set; } = "";
+    public string ScenarioPreset { get; set; } = "";
+    public string Strategy { get; set; } = "VWAP Momentum";
 }
 
 /// <summary>

@@ -106,37 +106,29 @@ public class MockRealtimeCandleProvider : IMarketDataProvider
         // Check if scenario simulation is enabled
         if (_scenarioService.IsScenarioEnabled())
         {
-            var scenario = _scenarioService.GetActiveScenario();
+            // Get the scenario assigned to this specific symbol
+            var scenario = _scenarioService.GetScenarioForSymbol(symbol);
 
-            // Check if scenario applies to this symbol (or all symbols if null)
-            if (scenario.Symbol == null || scenario.Symbol.Equals(symbol, StringComparison.OrdinalIgnoreCase))
+            _logger.LogDebug("Using scenario '{Scenario}' for {Symbol}", scenario.Name, symbol);
+
+            // Calculate start time for scenario
+            var latestCandleTime = RoundDownToTimeframe(currentTime, timeframe);
+            var startTime = latestCandleTime.AddMinutes(-((candleCount - 1) * timeframe));
+
+            // Use simulation engine with scenario config
+            var scenarioConfig = scenario with { Symbol = symbol };
+            if (!scenarioConfig.StartPrice.HasValue)
             {
-                _logger.LogDebug("Using scenario '{Scenario}' for {Symbol}", scenario.Name, symbol);
-
-                // Calculate start time for scenario
-                var latestCandleTime = RoundDownToTimeframe(currentTime, timeframe);
-                var startTime = latestCandleTime.AddMinutes(-((candleCount - 1) * timeframe));
-
-                // Use simulation engine with scenario config
-                var scenarioConfig = scenario with { Symbol = symbol };
-                if (!scenarioConfig.StartPrice.HasValue)
-                {
-                    scenarioConfig = scenarioConfig with { StartPrice = basePrice };
-                }
-
-                candles = _simulationEngine.GenerateCandles(
-                    scenarioConfig,
-                    scenarioConfig.StartPrice ?? basePrice,
-                    startTime,
-                    candleCount,
-                    timeframe,
-                    currentTime);
+                scenarioConfig = scenarioConfig with { StartPrice = basePrice };
             }
-            else
-            {
-                // Scenario doesn't apply to this symbol, use simple generation
-                candles = GenerateSimpleCandles(symbol, timeframe, candleCount, basePrice, currentTime);
-            }
+
+            candles = _simulationEngine.GenerateCandles(
+                scenarioConfig,
+                scenarioConfig.StartPrice ?? basePrice,
+                startTime,
+                candleCount,
+                timeframe,
+                currentTime);
         }
         else
         {

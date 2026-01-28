@@ -119,26 +119,27 @@ public class MarketSimulationEngine
         // Base return from normal distribution (Box-Muller transform)
         var u1 = random.NextDouble();
         var u2 = random.NextDouble();
-        var normalReturn = (decimal)(Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Cos(2.0 * Math.PI * u2));
+        var normalReturn = (decimal)(Math.Sqrt(-2.0 * Math.Log(Math.Max(0.0001, u1))) * Math.Cos(2.0 * Math.PI * u2));
 
-        // Scale by volatility and regime
-        var scaledVolatility = currentVolatility * regimeParams.VolatilityMultiplier;
+        // Scale by volatility and regime - REDUCED scaling for smoother moves
+        // Divide by sqrt of bars per day (~78 for 5min) to get per-bar volatility
+        var scaledVolatility = currentVolatility * regimeParams.VolatilityMultiplier * 0.15m;
         var baseReturn = normalReturn * scaledVolatility;
 
-        // Add drift from regime
-        baseReturn += regimeParams.Drift;
+        // Add drift from regime (also scaled down)
+        baseReturn += regimeParams.Drift * 0.1m;
 
-        // Apply mean reversion
+        // Apply mean reversion (helps smooth out extreme moves)
         if (regimeParams.MeanReversion > 0 && prevClose > 0)
         {
             var deviation = (currentPrice - prevClose) / prevClose;
-            baseReturn -= deviation * regimeParams.MeanReversion * 0.1m;
+            baseReturn -= deviation * regimeParams.MeanReversion * 0.3m;
         }
 
-        // Fat tail injection
-        if (random.NextDouble() < (double)regimeParams.FatTailProbability)
+        // Fat tail injection - much lower probability and smaller impact
+        if (random.NextDouble() < (double)(regimeParams.FatTailProbability * 0.1m))
         {
-            var tailMultiplier = 2.0m + (decimal)random.NextDouble() * 3.0m; // 2-5x normal move
+            var tailMultiplier = 1.5m + (decimal)random.NextDouble() * 1.0m; // 1.5-2.5x normal move
             baseReturn *= tailMultiplier * (random.NextDouble() > 0.5 ? 1 : -1);
         }
 
@@ -148,8 +149,8 @@ public class MarketSimulationEngine
             baseReturn = ApplyPatternOverlay(baseReturn, overlay, random, currentPrice);
         }
 
-        // Clamp to reasonable bounds (-10% to +10% per bar)
-        return Math.Max(-0.10m, Math.Min(0.10m, baseReturn));
+        // Clamp to reasonable bounds (-2% to +2% per bar for intraday)
+        return Math.Max(-0.02m, Math.Min(0.02m, baseReturn));
     }
 
     /// <summary>
@@ -158,16 +159,16 @@ public class MarketSimulationEngine
     private decimal ApplyPatternOverlay(decimal baseReturn, PatternOverlayConfig overlay, Random random, decimal currentPrice)
     {
         var direction = overlay.Direction.ToUpperInvariant() == "UP" ? 1m : -1m;
-        var noise = (decimal)(random.NextDouble() - 0.5) * 0.002m; // Small noise
+        var noise = (decimal)(random.NextDouble() - 0.5) * 0.0005m; // Tiny noise
 
         return overlay.Type switch
         {
-            PatternOverlayType.BREAKOUT => direction * 0.015m + noise, // Strong move in direction
-            PatternOverlayType.PULLBACK => -direction * 0.005m * (overlay.DepthATR ?? 0.8m) + noise,
-            PatternOverlayType.GAP_AND_GO => direction * 0.02m + noise, // Gap continuation
-            PatternOverlayType.MEAN_REVERSION => -baseReturn * 0.5m + noise, // Revert half the move
-            PatternOverlayType.DOUBLE_TOP or PatternOverlayType.DOUBLE_BOTTOM => baseReturn * 0.3m, // Reduced momentum
-            _ => baseReturn + direction * 0.005m
+            PatternOverlayType.BREAKOUT => direction * 0.003m + noise, // Gentle breakout move
+            PatternOverlayType.PULLBACK => -direction * 0.001m * (overlay.DepthATR ?? 0.8m) + noise,
+            PatternOverlayType.GAP_AND_GO => direction * 0.004m + noise, // Gap continuation
+            PatternOverlayType.MEAN_REVERSION => -baseReturn * 0.3m + noise, // Partial reversion
+            PatternOverlayType.DOUBLE_TOP or PatternOverlayType.DOUBLE_BOTTOM => baseReturn * 0.5m, // Reduced momentum
+            _ => baseReturn + direction * 0.001m
         };
     }
 
@@ -235,16 +236,16 @@ public class MarketSimulationEngine
             // Interpolate close based on progress
             close = open + (newClose - open) * (decimal)progress;
 
-            // Add tick-by-tick noise for live feel
-            var tickNoise = volatility * 0.1m * (decimal)(random.NextDouble() - 0.5);
+            // Very minimal tick noise for live feel (almost imperceptible)
+            var tickNoise = volatility * 0.01m * (decimal)(random.NextDouble() - 0.5);
             close += tickNoise;
         }
 
-        // High/Low: based on intrabar range proportional to volatility
-        var range = Math.Abs(open - close) + volatility * Math.Max(open, close) * (decimal)(0.5 + random.NextDouble());
+        // High/Low: based on intrabar range proportional to volatility (reduced)
+        var range = Math.Abs(open - close) * 0.3m + volatility * Math.Max(open, close) * (decimal)(0.1 + random.NextDouble() * 0.2);
 
-        var high = Math.Max(open, close) + range * (decimal)random.NextDouble() * 0.5m;
-        var low = Math.Min(open, close) - range * (decimal)random.NextDouble() * 0.5m;
+        var high = Math.Max(open, close) + range * (decimal)random.NextDouble() * 0.3m;
+        var low = Math.Min(open, close) - range * (decimal)random.NextDouble() * 0.3m;
 
         // Ensure consistency
         high = Math.Max(high, Math.Max(open, close));

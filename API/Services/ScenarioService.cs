@@ -13,6 +13,15 @@ public interface IScenarioService
     /// <summary>Gets the currently active scenario configuration</summary>
     ScenarioConfig GetActiveScenario();
 
+    /// <summary>Gets the scenario configuration for a specific symbol (distributed per-symbol)</summary>
+    ScenarioConfig GetScenarioForSymbol(string symbol);
+
+    /// <summary>Gets all symbol-to-scenario assignments</summary>
+    List<SymbolScenarioAssignment> GetSymbolAssignments();
+
+    /// <summary>Redistributes scenarios randomly to all symbols</summary>
+    void RedistributeScenarios();
+
     /// <summary>Gets whether scenario simulation is enabled</summary>
     bool IsScenarioEnabled();
 
@@ -50,17 +59,22 @@ public class ScenarioService : IScenarioService
     private bool _isEnabled = false;
     private readonly object _lock = new();
 
+    // Per-symbol scenario assignments (randomized on startup/reset)
+    private readonly Dictionary<string, string> _symbolScenarioMap = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Random _random = new();
+
     // Built-in presets
     private static readonly Dictionary<string, ScenarioConfig> Presets = new()
     {
+        ["Realistic Day"] = CreateRealisticDayConfig(),
         ["Default"] = CreateDefaultConfig(),
-        ["VWAP Long Test"] = CreateVwapLongTestConfig(),
-        ["VWAP Short Test"] = CreateVwapShortTestConfig(),
-        ["High Volume Breakout"] = CreateHighVolumeBreakoutConfig(),
-        ["Low Confidence Range"] = CreateLowConfidenceRangeConfig(),
-        ["ATR Test High Vol"] = CreateAtrTestHighVolConfig(),
+        ["VWAP Long Setup"] = CreateVwapLongTestConfig(),
+        ["VWAP Short Setup"] = CreateVwapShortTestConfig(),
+        ["Volume Breakout"] = CreateHighVolumeBreakoutConfig(),
+        ["Choppy Sideways"] = CreateLowConfidenceRangeConfig(),
+        ["Volatile Session"] = CreateAtrTestHighVolConfig(),
         ["Trend Reversal"] = CreateTrendReversalConfig(),
-        ["Crash Scenario"] = CreateCrashScenarioConfig()
+        ["Flash Crash"] = CreateCrashScenarioConfig()
     };
 
     public ScenarioService(
@@ -71,6 +85,9 @@ public class ScenarioService : IScenarioService
         _serviceProvider = serviceProvider;
         _logger = logger;
         _simulationEngine = simulationEngine;
+
+        // Initialize symbol-scenario assignments randomly
+        InitializeSymbolAssignments();
 
         // Load persisted config on startup
         _ = Task.Run(LoadPersistedConfigAsync);
@@ -84,6 +101,42 @@ public class ScenarioService : IScenarioService
         {
             return _activeConfig;
         }
+    }
+
+    public ScenarioConfig GetScenarioForSymbol(string symbol)
+    {
+        lock (_lock)
+        {
+            if (_symbolScenarioMap.TryGetValue(symbol, out var presetName) && Presets.TryGetValue(presetName, out var config))
+            {
+                return config with { Symbol = symbol };
+            }
+            // Fallback to default
+            return CreateDefaultConfig() with { Symbol = symbol };
+        }
+    }
+
+    public List<SymbolScenarioAssignment> GetSymbolAssignments()
+    {
+        lock (_lock)
+        {
+            return _symbolScenarioMap.Select(kvp => new SymbolScenarioAssignment
+            {
+                Symbol = kvp.Key,
+                ScenarioPreset = kvp.Value,
+                Strategy = "VWAP Momentum" // Currently only one strategy
+            }).OrderBy(a => a.Symbol).ToList();
+        }
+    }
+
+    public void RedistributeScenarios()
+    {
+        lock (_lock)
+        {
+            _symbolScenarioMap.Clear();
+            InitializeSymbolAssignmentsInternal();
+        }
+        _logger.LogInformation("Redistributed scenarios to {Count} symbols", _symbolScenarioMap.Count);
     }
 
     public bool IsScenarioEnabled()
@@ -115,7 +168,8 @@ public class ScenarioService : IScenarioService
             {
                 IsEnabled = _isEnabled,
                 ActiveConfig = _activeConfig,
-                AvailablePresets = Presets.Keys.ToList()
+                AvailablePresets = Presets.Keys.ToList(),
+                SymbolAssignments = GetSymbolAssignments()
             };
         }
     }
@@ -241,142 +295,224 @@ public class ScenarioService : IScenarioService
 
     #endregion
 
+    #region Symbol Assignment
+
+    // List of all supported symbols for mock data
+    private static readonly string[] AllSymbols = new[]
+    {
+        "SAP.DE", "SIE.DE", "ALV.DE", "BAS.DE", "IFX.DE", "BMW.DE", "MBG.DE", "VOW3.DE",
+        "DTE.DE", "RWE.DE", "EOAN.DE", "MUV2.DE", "CBK.DE", "DBK.DE", "ENR.DE", "ADS.DE",
+        "BAYN.DE", "HEI.DE", "ZAL.DE", "DB1.DE", "RHM.DE", "MTX.DE", "AIR.DE", "SRT3.DE",
+        "SY1.DE", "HEN3.DE", "1COV.DE", "P911.DE", "VNA.DE", "FRE.DE", "HFG.DE", "DHER.DE",
+        "BEI.DE", "HNR1.DE", "BNR.DE", "SHL.DE", "FME.DE", "MRK.DE", "QIA.DE", "PAH3.DE",
+        "TMV.DE", "AIXA.DE", "S92.DE", "EVT.DE", "AFX.DE", "NEM.DE", "WAF.DE", "JEN.DE",
+        "COK.DE", "GFT.DE", "NA9.DE", "SMHN.DE"
+    };
+
+    private void InitializeSymbolAssignments()
+    {
+        lock (_lock)
+        {
+            InitializeSymbolAssignmentsInternal();
+        }
+    }
+
+    private void InitializeSymbolAssignmentsInternal()
+    {
+        var presetNames = Presets.Keys.ToList();
+        foreach (var symbol in AllSymbols)
+        {
+            // Randomly assign a preset to each symbol
+            var presetIndex = _random.Next(presetNames.Count);
+            _symbolScenarioMap[symbol] = presetNames[presetIndex];
+        }
+        _logger.LogInformation("Initialized scenario assignments for {Count} symbols", AllSymbols.Length);
+    }
+
+    #endregion
+
     #region Preset Configurations
+
+    private static ScenarioConfig CreateRealisticDayConfig() => new()
+    {
+        Name = "Realistic Day",
+        Description = "Simulates a typical trading day: quiet open → mid-morning activity → lunch lull → afternoon push",
+        Seed = 1001,
+        BaseVolatility = 0.008m,
+        Regimes = new List<RegimePhase>
+        {
+            new() { Type = MarketRegime.LOW_VOL, Bars = 40, VolumeMultiplier = 0.7m, Volatility = 0.006m, Drift = 0.0001m },
+            new() { Type = MarketRegime.RANGE, Bars = 60, VolumeMultiplier = 1.0m, Volatility = 0.009m, Drift = 0.0002m },
+            new() { Type = MarketRegime.TREND_UP, Bars = 50, VolumeMultiplier = 1.2m, Volatility = 0.010m, Drift = 0.0004m },
+            new() { Type = MarketRegime.LOW_VOL, Bars = 30, VolumeMultiplier = 0.6m, Volatility = 0.005m, Drift = 0.0m },
+            new() { Type = MarketRegime.RANGE, Bars = 40, VolumeMultiplier = 0.8m, Volatility = 0.007m, Drift = -0.0001m },
+            new() { Type = MarketRegime.TREND_UP, Bars = 60, VolumeMultiplier = 1.3m, Volatility = 0.011m, Drift = 0.0003m },
+            new() { Type = MarketRegime.HIGH_VOL, Bars = 20, VolumeMultiplier = 1.5m, Volatility = 0.014m, Drift = 0.0002m }
+        },
+        Overlays = new List<PatternOverlayConfig>()
+    };
 
     private static ScenarioConfig CreateDefaultConfig() => new()
     {
         Name = "Default",
-        Description = "Default random market behavior with moderate volatility",
+        Description = "Gentle random walk with low volatility, suitable for basic testing",
         Seed = null,
-        BaseVolatility = 0.02m,
+        BaseVolatility = 0.010m,
         Regimes = new List<RegimePhase>
         {
-            new() { Type = MarketRegime.RANGE, Bars = 500 }
+            new() { Type = MarketRegime.RANGE, Bars = 200, VolumeMultiplier = 1.0m, Volatility = 0.009m },
+            new() { Type = MarketRegime.TREND_UP, Bars = 150, VolumeMultiplier = 1.1m, Volatility = 0.010m, Drift = 0.0002m },
+            new() { Type = MarketRegime.RANGE, Bars = 150, VolumeMultiplier = 0.9m, Volatility = 0.008m }
         },
         Overlays = new List<PatternOverlayConfig>()
     };
 
     private static ScenarioConfig CreateVwapLongTestConfig() => new()
     {
-        Name = "VWAP Long Test",
-        Description = "200 bars range → BREAKOUT above VWAP → 300 bars uptrend with pullback. Tests LONG signal generation.",
+        Name = "VWAP Long Setup",
+        Description = "Gradual accumulation below VWAP → steady breakout → healthy uptrend with natural pullbacks",
         Seed = 42,
-        BaseVolatility = 0.015m,
+        BaseVolatility = 0.009m,
         Regimes = new List<RegimePhase>
         {
-            new() { Type = MarketRegime.RANGE, Bars = 200, VolumeMultiplier = 0.9m },
-            new() { Type = MarketRegime.TREND_UP, Bars = 300, VolumeMultiplier = 1.3m }
+            new() { Type = MarketRegime.RANGE, Bars = 80, VolumeMultiplier = 0.8m, Volatility = 0.007m, Drift = -0.0001m },
+            new() { Type = MarketRegime.LOW_VOL, Bars = 40, VolumeMultiplier = 0.7m, Volatility = 0.005m, Drift = 0.0001m },
+            new() { Type = MarketRegime.RANGE, Bars = 30, VolumeMultiplier = 1.1m, Volatility = 0.008m, Drift = 0.0002m },
+            new() { Type = MarketRegime.TREND_UP, Bars = 100, VolumeMultiplier = 1.3m, Volatility = 0.011m, Drift = 0.0005m },
+            new() { Type = MarketRegime.RANGE, Bars = 30, VolumeMultiplier = 1.0m, Volatility = 0.008m, Drift = 0.0001m },
+            new() { Type = MarketRegime.TREND_UP, Bars = 70, VolumeMultiplier = 1.2m, Volatility = 0.010m, Drift = 0.0004m }
         },
         Overlays = new List<PatternOverlayConfig>
         {
-            new() { Type = PatternOverlayType.BREAKOUT, AtBar = 180, Direction = "UP", VolumeBoost = 2.5m, NoiseBars = 3 },
-            new() { Type = PatternOverlayType.PULLBACK, AtBar = 200, ToBar = 240, Direction = "UP", DepthATR = 0.8m, VolumeBoost = 1.2m }
+            new() { Type = PatternOverlayType.BREAKOUT, AtBar = 145, Direction = "UP", VolumeBoost = 1.6m, NoiseBars = 5 },
+            new() { Type = PatternOverlayType.PULLBACK, AtBar = 250, ToBar = 280, Direction = "UP", DepthATR = 0.5m, VolumeBoost = 1.1m }
         }
     };
 
     private static ScenarioConfig CreateVwapShortTestConfig() => new()
     {
-        Name = "VWAP Short Test",
-        Description = "200 bars range → BREAKOUT below VWAP → 300 bars downtrend. Tests SHORT signal generation.",
+        Name = "VWAP Short Setup",
+        Description = "Distribution above VWAP → gradual breakdown → controlled downtrend with dead cat bounces",
         Seed = 43,
-        BaseVolatility = 0.018m,
+        BaseVolatility = 0.010m,
         Regimes = new List<RegimePhase>
         {
-            new() { Type = MarketRegime.RANGE, Bars = 200, VolumeMultiplier = 0.9m },
-            new() { Type = MarketRegime.TREND_DOWN, Bars = 300, VolumeMultiplier = 1.4m }
+            new() { Type = MarketRegime.RANGE, Bars = 60, VolumeMultiplier = 0.9m, Volatility = 0.008m, Drift = 0.0001m },
+            new() { Type = MarketRegime.TREND_UP, Bars = 40, VolumeMultiplier = 0.8m, Volatility = 0.007m, Drift = 0.0002m },
+            new() { Type = MarketRegime.RANGE, Bars = 50, VolumeMultiplier = 1.0m, Volatility = 0.009m, Drift = -0.0001m },
+            new() { Type = MarketRegime.TREND_DOWN, Bars = 80, VolumeMultiplier = 1.3m, Volatility = 0.012m, Drift = -0.0005m },
+            new() { Type = MarketRegime.RANGE, Bars = 30, VolumeMultiplier = 0.9m, Volatility = 0.008m, Drift = 0.0001m },
+            new() { Type = MarketRegime.TREND_DOWN, Bars = 60, VolumeMultiplier = 1.2m, Volatility = 0.011m, Drift = -0.0004m }
         },
         Overlays = new List<PatternOverlayConfig>
         {
-            new() { Type = PatternOverlayType.BREAKOUT, AtBar = 180, Direction = "DOWN", VolumeBoost = 2.5m, NoiseBars = 3 }
+            new() { Type = PatternOverlayType.BREAKOUT, AtBar = 145, Direction = "DOWN", VolumeBoost = 1.5m, NoiseBars = 4 }
         }
     };
 
     private static ScenarioConfig CreateHighVolumeBreakoutConfig() => new()
     {
-        Name = "High Volume Breakout",
-        Description = "Consolidation followed by massive volume breakout (3x average). Tests volume filter threshold.",
+        Name = "Volume Breakout",
+        Description = "Extended quiet consolidation → volume builds gradually → breakout with sustained follow-through",
         Seed = 100,
-        BaseVolatility = 0.012m,
+        BaseVolatility = 0.007m,
         Regimes = new List<RegimePhase>
         {
-            new() { Type = MarketRegime.LOW_VOL, Bars = 150, VolumeMultiplier = 0.7m },
-            new() { Type = MarketRegime.RANGE, Bars = 100, VolumeMultiplier = 0.8m },
-            new() { Type = MarketRegime.TREND_UP, Bars = 200, VolumeMultiplier = 1.5m }
+            new() { Type = MarketRegime.LOW_VOL, Bars = 60, VolumeMultiplier = 0.6m, Volatility = 0.005m, Drift = 0.0m },
+            new() { Type = MarketRegime.RANGE, Bars = 50, VolumeMultiplier = 0.7m, Volatility = 0.006m, Drift = 0.0001m },
+            new() { Type = MarketRegime.LOW_VOL, Bars = 40, VolumeMultiplier = 0.8m, Volatility = 0.006m, Drift = 0.0001m },
+            new() { Type = MarketRegime.RANGE, Bars = 30, VolumeMultiplier = 1.2m, Volatility = 0.008m, Drift = 0.0002m },
+            new() { Type = MarketRegime.TREND_UP, Bars = 80, VolumeMultiplier = 1.5m, Volatility = 0.012m, Drift = 0.0006m },
+            new() { Type = MarketRegime.RANGE, Bars = 40, VolumeMultiplier = 1.2m, Volatility = 0.009m, Drift = 0.0002m }
         },
         Overlays = new List<PatternOverlayConfig>
         {
-            new() { Type = PatternOverlayType.BREAKOUT, AtBar = 250, Direction = "UP", VolumeBoost = 3.0m, NoiseBars = 2 }
+            new() { Type = PatternOverlayType.BREAKOUT, AtBar = 175, Direction = "UP", VolumeBoost = 1.8m, NoiseBars = 3 }
         }
     };
 
     private static ScenarioConfig CreateLowConfidenceRangeConfig() => new()
     {
-        Name = "Low Confidence Range",
-        Description = "High volatility, low volume range-bound market. Should NOT trigger strong signals.",
+        Name = "Choppy Sideways",
+        Description = "Frustrating sideways chop with false breakouts. Tests signal filtering in unclear conditions.",
         Seed = 200,
-        BaseVolatility = 0.035m, // >3% = low confidence penalty
+        BaseVolatility = 0.012m,
         Regimes = new List<RegimePhase>
         {
-            new() { Type = MarketRegime.HIGH_VOL, Bars = 300, VolumeMultiplier = 0.7m }, // Below 1.2x threshold
-            new() { Type = MarketRegime.RANGE, Bars = 200, Volatility = 0.04m, VolumeMultiplier = 0.6m }
+            new() { Type = MarketRegime.RANGE, Bars = 50, VolumeMultiplier = 0.8m, Volatility = 0.010m, Drift = 0.0001m },
+            new() { Type = MarketRegime.TREND_UP, Bars = 25, VolumeMultiplier = 0.9m, Volatility = 0.011m, Drift = 0.0003m },
+            new() { Type = MarketRegime.RANGE, Bars = 40, VolumeMultiplier = 0.7m, Volatility = 0.009m, Drift = -0.0001m },
+            new() { Type = MarketRegime.TREND_DOWN, Bars = 25, VolumeMultiplier = 0.9m, Volatility = 0.011m, Drift = -0.0003m },
+            new() { Type = MarketRegime.RANGE, Bars = 60, VolumeMultiplier = 0.8m, Volatility = 0.010m, Drift = 0.0m },
+            new() { Type = MarketRegime.TREND_UP, Bars = 20, VolumeMultiplier = 0.85m, Volatility = 0.010m, Drift = 0.0002m },
+            new() { Type = MarketRegime.RANGE, Bars = 50, VolumeMultiplier = 0.75m, Volatility = 0.009m, Drift = -0.0001m }
         },
         Overlays = new List<PatternOverlayConfig>()
     };
 
     private static ScenarioConfig CreateAtrTestHighVolConfig() => new()
     {
-        Name = "ATR Test High Vol",
-        Description = "High volatility phase for testing ATR-based SL/TP calculations. Wide stops expected.",
+        Name = "Volatile Session",
+        Description = "Elevated volatility day with wider price swings. Tests ATR-based position sizing.",
         Seed = 300,
-        BaseVolatility = 0.025m,
+        BaseVolatility = 0.014m,
         Regimes = new List<RegimePhase>
         {
-            new() { Type = MarketRegime.RANGE, Bars = 100 },
-            new() { Type = MarketRegime.HIGH_VOL, Bars = 200, Volatility = 0.04m },
-            new() { Type = MarketRegime.TREND_UP, Bars = 200, Volatility = 0.03m }
+            new() { Type = MarketRegime.RANGE, Bars = 40, VolumeMultiplier = 1.0m, Volatility = 0.010m, Drift = 0.0m },
+            new() { Type = MarketRegime.HIGH_VOL, Bars = 60, VolumeMultiplier = 1.3m, Volatility = 0.018m, Drift = 0.0002m },
+            new() { Type = MarketRegime.TREND_UP, Bars = 50, VolumeMultiplier = 1.4m, Volatility = 0.016m, Drift = 0.0005m },
+            new() { Type = MarketRegime.HIGH_VOL, Bars = 40, VolumeMultiplier = 1.2m, Volatility = 0.020m, Drift = -0.0002m },
+            new() { Type = MarketRegime.RANGE, Bars = 50, VolumeMultiplier = 1.1m, Volatility = 0.014m, Drift = 0.0001m },
+            new() { Type = MarketRegime.TREND_DOWN, Bars = 40, VolumeMultiplier = 1.3m, Volatility = 0.017m, Drift = -0.0004m }
         },
         Overlays = new List<PatternOverlayConfig>
         {
-            new() { Type = PatternOverlayType.BREAKOUT, AtBar = 300, Direction = "UP", VolumeBoost = 2.0m }
+            new() { Type = PatternOverlayType.BREAKOUT, AtBar = 95, Direction = "UP", VolumeBoost = 1.4m }
         }
     };
 
     private static ScenarioConfig CreateTrendReversalConfig() => new()
     {
         Name = "Trend Reversal",
-        Description = "Uptrend → Double Top → Downtrend. Tests reversal pattern detection.",
+        Description = "Healthy uptrend loses momentum → distribution top → gradual breakdown into downtrend",
         Seed = 400,
-        BaseVolatility = 0.02m,
+        BaseVolatility = 0.010m,
         Regimes = new List<RegimePhase>
         {
-            new() { Type = MarketRegime.TREND_UP, Bars = 200 },
-            new() { Type = MarketRegime.RANGE, Bars = 100 },
-            new() { Type = MarketRegime.TREND_DOWN, Bars = 200 }
+            new() { Type = MarketRegime.TREND_UP, Bars = 70, VolumeMultiplier = 1.2m, Volatility = 0.011m, Drift = 0.0005m },
+            new() { Type = MarketRegime.TREND_UP, Bars = 40, VolumeMultiplier = 1.0m, Volatility = 0.010m, Drift = 0.0003m },
+            new() { Type = MarketRegime.RANGE, Bars = 50, VolumeMultiplier = 0.9m, Volatility = 0.009m, Drift = 0.0m },
+            new() { Type = MarketRegime.RANGE, Bars = 40, VolumeMultiplier = 1.1m, Volatility = 0.011m, Drift = -0.0001m },
+            new() { Type = MarketRegime.TREND_DOWN, Bars = 60, VolumeMultiplier = 1.3m, Volatility = 0.013m, Drift = -0.0005m },
+            new() { Type = MarketRegime.RANGE, Bars = 30, VolumeMultiplier = 1.0m, Volatility = 0.010m, Drift = -0.0002m }
         },
         Overlays = new List<PatternOverlayConfig>
         {
-            new() { Type = PatternOverlayType.DOUBLE_TOP, AtBar = 180, ToBar = 280, Direction = "DOWN", VolumeBoost = 1.5m }
+            new() { Type = PatternOverlayType.DOUBLE_TOP, AtBar = 100, ToBar = 160, Direction = "DOWN", VolumeBoost = 1.2m }
         }
     };
 
     private static ScenarioConfig CreateCrashScenarioConfig() => new()
     {
-        Name = "Crash Scenario",
-        Description = "Sudden market crash with extreme volatility and volume. Tests risk management.",
+        Name = "Flash Crash",
+        Description = "Normal trading → sudden sharp selloff → panic → gradual stabilization and recovery",
         Seed = 999,
-        BaseVolatility = 0.02m,
-        GapProbability = 0.3m,
-        MaxGapPercent = 0.05m,
+        BaseVolatility = 0.012m,
+        GapProbability = 0.1m,
+        MaxGapPercent = 0.02m,
         Regimes = new List<RegimePhase>
         {
-            new() { Type = MarketRegime.TREND_UP, Bars = 150, VolumeMultiplier = 1.0m },
-            new() { Type = MarketRegime.CRASH, Bars = 50, VolumeMultiplier = 3.0m },
-            new() { Type = MarketRegime.HIGH_VOL, Bars = 100, VolumeMultiplier = 2.0m },
-            new() { Type = MarketRegime.RANGE, Bars = 200, VolumeMultiplier = 1.2m }
+            new() { Type = MarketRegime.RANGE, Bars = 50, VolumeMultiplier = 0.9m, Volatility = 0.008m, Drift = 0.0001m },
+            new() { Type = MarketRegime.TREND_UP, Bars = 40, VolumeMultiplier = 1.0m, Volatility = 0.009m, Drift = 0.0003m },
+            new() { Type = MarketRegime.CRASH, Bars = 20, VolumeMultiplier = 2.0m, Volatility = 0.030m, Drift = -0.0020m },
+            new() { Type = MarketRegime.HIGH_VOL, Bars = 40, VolumeMultiplier = 1.6m, Volatility = 0.022m, Drift = -0.0005m },
+            new() { Type = MarketRegime.RANGE, Bars = 50, VolumeMultiplier = 1.2m, Volatility = 0.015m, Drift = 0.0m },
+            new() { Type = MarketRegime.TREND_UP, Bars = 40, VolumeMultiplier = 1.1m, Volatility = 0.012m, Drift = 0.0004m },
+            new() { Type = MarketRegime.RANGE, Bars = 60, VolumeMultiplier = 1.0m, Volatility = 0.010m, Drift = 0.0001m }
         },
         Overlays = new List<PatternOverlayConfig>
         {
-            new() { Type = PatternOverlayType.GAP_AND_GO, AtBar = 150, Direction = "DOWN", VolumeBoost = 4.0m }
+            new() { Type = PatternOverlayType.GAP_AND_GO, AtBar = 88, Direction = "DOWN", VolumeBoost = 1.8m }
         }
     };
 
