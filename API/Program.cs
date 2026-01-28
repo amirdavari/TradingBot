@@ -63,6 +63,7 @@ builder.Services.AddScoped<INewsProvider>(sp =>
 // Replay/Mock mode: MockRealtimeCandleProvider (generated scenario-based data)
 builder.Services.AddSingleton<MarketSimulationEngine>();
 builder.Services.AddSingleton<IScenarioService, ScenarioService>();
+builder.Services.AddSingleton<ISimulationSettingsService, SimulationSettingsService>();
 builder.Services.AddHttpClient<YahooFinanceMarketDataProvider>();
 builder.Services.AddScoped<IMarketDataProvider>(sp =>
 {

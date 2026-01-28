@@ -21,6 +21,7 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(false);
     const [newsLoading, setNewsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [currentPrice, setCurrentPrice] = useState<number>(0);
 
     console.log('[Dashboard] State:', {
         selectedSymbol,
@@ -74,7 +75,23 @@ export default function Dashboard() {
             // Always create a new array reference to trigger React updates
             // This ensures the chart updates even if candle count is the same
             setCandles([...candlesData]);
-            setSignal({ ...signalData });
+
+            // Update current price from latest candle
+            if (candlesData.length > 0) {
+                setCurrentPrice(candlesData[candlesData.length - 1].close);
+            }
+
+            // Only update direction, confidence, reasons from signal
+            // Keep Entry/SL/TP stable (they come from signal calculation, not live price)
+            setSignal(prev => {
+                if (!prev) return signalData;
+                return {
+                    ...prev,
+                    direction: signalData.direction,
+                    confidence: signalData.confidence,
+                    reasons: signalData.reasons
+                };
+            });
             setError(null); // Clear any previous errors on successful refresh
 
             // Enhanced logging to debug data changes
@@ -110,25 +127,41 @@ export default function Dashboard() {
         selectedSymbolRef.current = selectedSymbol;
     }, [selectedSymbol]);
 
+    // Keep timeframe ref current for SignalR callback
+    const timeframeRef = useRef(timeframe);
+    useEffect(() => {
+        timeframeRef.current = timeframe;
+    }, [timeframe]);
+
     // Update signal from SignalR scanner results to keep TradeSetup in sync with Watchlist
+    // NOTE: Scanner always uses timeframe=5, so only sync when dashboard also uses timeframe=5
     const handleScanResults = useCallback((results: ScanResult[]) => {
         const currentSymbol = selectedSymbolRef.current;
+        const currentTimeframe = timeframeRef.current;
         const scanResult = results.find(r => r.symbol === currentSymbol);
-        
+
         if (scanResult) {
-            console.log('[Dashboard] Updating signal from scanner results for', currentSymbol);
-            // Convert ScanResult to TradeSignal format for TradeSetupPanel
-            // Note: ScanResult doesn't have entry/stopLoss/takeProfit, so we keep existing signal
-            // but update direction and confidence to stay in sync
-            setSignal(prev => {
-                if (!prev || prev.symbol !== currentSymbol) return prev;
-                return {
-                    ...prev,
-                    direction: scanResult.trend,
-                    confidence: scanResult.confidence,
-                    reasons: scanResult.reasons
-                };
-            });
+            // Always update current price (it's symbol-specific, not timeframe-specific)
+            if (scanResult.currentPrice > 0) {
+                setCurrentPrice(scanResult.currentPrice);
+            }
+
+            // Only sync trend/confidence when timeframe matches scanner (5min)
+            // This prevents inconsistency when user selects 1m or 15m timeframe
+            if (currentTimeframe === 5) {
+                console.log('[Dashboard] Syncing signal from scanner results for', currentSymbol, '(timeframe=5)');
+                setSignal(prev => {
+                    if (!prev || prev.symbol !== currentSymbol) return prev;
+                    return {
+                        ...prev,
+                        direction: scanResult.trend,
+                        confidence: scanResult.confidence,
+                        reasons: scanResult.reasons
+                    };
+                });
+            } else {
+                console.log('[Dashboard] Skipping signal sync - timeframe mismatch (dashboard:', currentTimeframe, ', scanner: 5)');
+            }
         }
     }, []);
 
@@ -180,6 +213,11 @@ export default function Dashboard() {
                 console.log(`[Dashboard] Received ${candlesData.length} candles for ${selectedSymbol}`);
                 setCandles(candlesData);
                 setSignal(signalData);
+
+                // Set initial current price from last candle
+                if (candlesData.length > 0) {
+                    setCurrentPrice(candlesData[candlesData.length - 1].close);
+                }
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to fetch data');
                 console.error('[Dashboard] Error fetching data:', err);
@@ -282,7 +320,7 @@ export default function Dashboard() {
     };
 
     return (
-        <Box sx={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', gap: 1, p: 1, overflow: 'hidden' }}>
+        <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 1, p: 1, overflow: 'hidden' }}>
             {/* Main Content */}
             <Grid container spacing={1} sx={{ flexShrink: 0, height: '65%', minHeight: '450px' }}>
                 {/* Watchlist Panel */}
@@ -316,6 +354,7 @@ export default function Dashboard() {
                         symbol={selectedSymbol}
                         timeframe={timeframe}
                         availableCash={account?.availableCash ?? 0}
+                        currentPrice={currentPrice}
                         onBuyTrade={handleBuyTrade}
                         onSellTrade={handleSellTrade}
                     />

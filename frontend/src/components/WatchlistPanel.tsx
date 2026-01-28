@@ -23,11 +23,13 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import TrendingFlatIcon from '@mui/icons-material/TrendingFlat';
 import NewspaperIcon from '@mui/icons-material/Newspaper';
+import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import LoadingSpinner from './LoadingSpinner';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useScanner } from '../hooks/useScanner';
 import { useOpenTrades } from '../hooks/useOpenTrades';
 import { useSignalRScanResults } from '../hooks/useSignalR';
+import { getScenarioState, type ScenarioState } from '../api/scenarioApi';
 
 // Static company name lookup for known symbols
 const COMPANY_NAMES: Record<string, string> = {
@@ -81,6 +83,12 @@ export default function WatchlistPanel({ selectedSymbol, onSymbolChange }: Watch
     const [showAddForm, setShowAddForm] = useState(false);
     const [orderBy, setOrderBy] = useState<'symbol' | 'company' | 'volume' | 'trend' | 'confidence'>('symbol');
     const [order, setOrder] = useState<'asc' | 'desc'>('asc');
+    const [scenarioState, setScenarioState] = useState<ScenarioState | null>(null);
+
+    // Load scenario state on mount
+    useEffect(() => {
+        getScenarioState().then(setScenarioState).catch(console.error);
+    }, []);
 
     // Keep symbols ref up to date for SignalR callback (avoids stale closure)
     const symbolsRef = useRef(symbols);
@@ -92,28 +100,28 @@ export default function WatchlistPanel({ selectedSymbol, onSymbolChange }: Watch
     // Only update symbols that are in the watchlist, keep others unchanged
     useSignalRScanResults((results) => {
         console.log('[WatchlistPanel] Received scanner results via SignalR:', results.length);
-        
+
         // Create a map of new results for quick lookup
         const newResultsMap = new Map(results.map(r => [r.symbol, r]));
         const currentSymbols = symbolsRef.current; // Use ref to get current symbols
-        
+
         // Merge: update existing symbols if we have new data, keep others
         setScanResults(prev => {
             const merged = prev.map(existing => {
                 const updated = newResultsMap.get(existing.symbol);
                 return updated || existing; // Use new data if available, otherwise keep existing
             });
-            
+
             // Also add any new symbols from SignalR that are in our watchlist but weren't in prev
             const existingSymbols = new Set(prev.map(r => r.symbol));
             const watchlistSymbolSet = new Set(currentSymbols);
-            
+
             results.forEach(result => {
                 if (!existingSymbols.has(result.symbol) && watchlistSymbolSet.has(result.symbol)) {
                     merged.push(result);
                 }
             });
-            
+
             return merged;
         });
     });
@@ -344,6 +352,9 @@ export default function WatchlistPanel({ selectedSymbol, onSymbolChange }: Watch
                                             Company
                                         </TableSortLabel>
                                     </TableCell>
+                                    <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 0.5, width: 40, fontSize: '0.75rem' }} align="center">
+                                        <Tooltip title="Scenario"><AutoGraphIcon fontSize="small" /></Tooltip>
+                                    </TableCell>
                                     <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', py: 0.5, width: 70, fontSize: '0.75rem' }} align="center">
                                         <TableSortLabel
                                             active={orderBy === 'volume'}
@@ -413,6 +424,26 @@ export default function WatchlistPanel({ selectedSymbol, onSymbolChange }: Watch
                                                         {item.companyName || COMPANY_NAMES[item.symbol] || '—'}
                                                     </Typography>
                                                 </Tooltip>
+                                            </TableCell>
+                                            <TableCell align="center" sx={{ py: 0.5 }}>
+                                                {(() => {
+                                                    const assignment = scenarioState?.symbolAssignments?.find(a => a.symbol === item.symbol);
+                                                    if (!assignment) return <Typography variant="caption" color="text.disabled">—</Typography>;
+                                                    const scenarioLabel = assignment.scenarioPreset.replace(/_/g, ' ');
+                                                    return (
+                                                        <Tooltip title={`Scenario: ${scenarioLabel}`}>
+                                                            <AutoGraphIcon
+                                                                fontSize="small"
+                                                                sx={{
+                                                                    color: assignment.scenarioPreset.includes('BULL') ? 'success.main'
+                                                                        : assignment.scenarioPreset.includes('BEAR') ? 'error.main'
+                                                                            : 'warning.main',
+                                                                    fontSize: '1rem'
+                                                                }}
+                                                            />
+                                                        </Tooltip>
+                                                    );
+                                                })()}
                                             </TableCell>
                                             <TableCell align="center">
                                                 {result && !result.hasError ? (

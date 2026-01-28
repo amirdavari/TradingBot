@@ -33,6 +33,7 @@ export interface ScanResult {
     hasNews: boolean;
     confidence: number;
     reasons: string[];
+    currentPrice: number;
     hasError?: boolean;
     errorMessage?: string;
 }

@@ -29,20 +29,22 @@ interface TradeSetupPanelProps {
     symbol: string;
     timeframe: number;
     availableCash: number;
+    currentPrice: number;
     onBuyTrade: (signal: TradeSignal, riskCalc: RiskCalculation, riskPercent: number) => void;
     onSellTrade: (signal: TradeSignal, riskCalc: RiskCalculation, riskPercent: number) => void;
 }
 
-export default function TradeSetupPanel({ 
+export default function TradeSetupPanel({
     signal,
-    onBuyTrade, 
-    onSellTrade 
+    currentPrice,
+    onBuyTrade,
+    onSellTrade
 }: TradeSetupPanelProps) {
     const [riskCalc, setRiskCalc] = useState<RiskCalculation | null>(null);
     const [loadingRisk, setLoadingRisk] = useState(false);
     const [riskPercent, setRiskPercent] = useState<number>(1);
     const [lastSignalKey, setLastSignalKey] = useState<string>('');
-    
+
     // Auto-trade state
     const [autoTradeSettings, setAutoTradeSettings] = useState<AutoTradeSettings | null>(null);
     const [autoTradeDialogOpen, setAutoTradeDialogOpen] = useState(false);
@@ -70,7 +72,7 @@ export default function TradeSetupPanel({
 
         // Create a key from signal values to detect actual changes
         const signalKey = `${signal.symbol}-${signal.entry}-${signal.stopLoss}-${signal.takeProfit}-${riskPercent}`;
-        
+
         // Only fetch if signal values actually changed
         if (signalKey === lastSignalKey) {
             return;
@@ -201,6 +203,22 @@ export default function TradeSetupPanel({
                             </Stack>
                         </Box>
 
+                        {/* Current Price (Live) */}
+                        {currentPrice > 0 && (
+                            <Box>
+                                <Stack direction="row" justifyContent="space-between" alignItems="baseline">
+                                    <Typography variant="caption" color="text.secondary">Current:</Typography>
+                                    <Typography
+                                        variant="body1"
+                                        fontWeight="bold"
+                                        color={currentPrice > signal.entry ? 'success.main' : currentPrice < signal.entry ? 'error.main' : 'text.primary'}
+                                    >
+                                        ${currentPrice.toFixed(2)}
+                                    </Typography>
+                                </Stack>
+                            </Box>
+                        )}
+
                         {/* Stop Loss (Read-Only) */}
                         <Box>
                             <Stack direction="row" justifyContent="space-between" alignItems="baseline">
@@ -231,11 +249,11 @@ export default function TradeSetupPanel({
                                 <Typography variant="caption" color="text.secondary">Confidence:</Typography>
                                 <Typography variant="body2" fontWeight="bold">{signal.confidence}%</Typography>
                             </Stack>
-                            <LinearProgress 
-                                variant="determinate" 
-                                value={signal.confidence} 
-                                sx={{ 
-                                    height: 3, 
+                            <LinearProgress
+                                variant="determinate"
+                                value={signal.confidence}
+                                sx={{
+                                    height: 3,
                                     borderRadius: 1,
                                     '& .MuiLinearProgress-bar': {
                                         backgroundColor: signal.confidence >= 70 ? 'success.main' : signal.confidence >= 50 ? 'warning.main' : 'error.main'
@@ -272,7 +290,7 @@ export default function TradeSetupPanel({
                                         value={riskPercent}
                                         onChange={(e) => setRiskPercent(Number(e.target.value))}
                                         size="small"
-                                        sx={{ 
+                                        sx={{
                                             width: '60px',
                                             '& input': {
                                                 textAlign: 'left',
@@ -356,16 +374,16 @@ export default function TradeSetupPanel({
                         ) : null}
 
                         {/* Action Button */}
-                        <Button 
-                            variant="contained" 
+                        <Button
+                            variant="contained"
                             color={signal.direction === 'LONG' ? 'success' : 'error'}
                             fullWidth
                             onClick={signal.direction === 'LONG' ? handleBuy : handleSell}
                             size="large"
                             disabled={
-                                signal.direction === 'NONE' || 
-                                !riskCalc || 
-                                !riskCalc.isAllowed || 
+                                signal.direction === 'NONE' ||
+                                !riskCalc ||
+                                !riskCalc.isAllowed ||
                                 loadingRisk
                             }
                         >
@@ -430,9 +448,9 @@ export default function TradeSetupPanel({
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setAutoTradeDialogOpen(false)}>Abbrechen</Button>
-                    <Button 
-                        onClick={handleSaveAutoTradeSettings} 
-                        variant="contained" 
+                    <Button
+                        onClick={handleSaveAutoTradeSettings}
+                        variant="contained"
                         disabled={savingAutoTrade}
                     >
                         {savingAutoTrade ? <CircularProgress size={20} /> : 'Speichern'}

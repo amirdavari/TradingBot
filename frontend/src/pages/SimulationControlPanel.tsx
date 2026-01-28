@@ -23,6 +23,8 @@ import {
     TableRow,
     Collapse,
     IconButton,
+    Slider,
+    Divider,
 } from '@mui/material';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import AutoGraphIcon from '@mui/icons-material/AutoGraph';
@@ -30,14 +32,18 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import ShuffleIcon from '@mui/icons-material/Shuffle';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import TuneIcon from '@mui/icons-material/Tune';
 import { useReplayState } from '../hooks/useReplayState';
-import type { ScenarioState } from '../api/scenarioApi';
+import type { ScenarioState, SimulationSettings } from '../api/scenarioApi';
 import {
     getScenarioState,
     applyScenarioPreset,
     setScenarioEnabled,
     resetScenario,
     redistributeScenarios,
+    getSimulationSettings,
+    updateSimulationSettings,
+    resetSimulationSettings,
 } from '../api/scenarioApi';
 
 // Preset descriptions for tooltips
@@ -73,9 +79,13 @@ export default function SimulationControlPanel() {
     const [scenarioLoading, setScenarioLoading] = useState(false);
     const [selectedPreset, setSelectedPreset] = useState<string>('');
     const [showAssignments, setShowAssignments] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
+    const [settings, setSettings] = useState<SimulationSettings | null>(null);
+    const [settingsLoading, setSettingsLoading] = useState(false);
 
     useEffect(() => {
         loadScenarioState();
+        loadSettings();
     }, []);
 
     const loadScenarioState = async () => {
@@ -87,6 +97,45 @@ export default function SimulationControlPanel() {
             }
         } catch (err) {
             console.error('Failed to load scenario state:', err);
+        }
+    };
+
+    const loadSettings = async () => {
+        try {
+            const data = await getSimulationSettings();
+            setSettings(data);
+        } catch (err) {
+            console.error('Failed to load simulation settings:', err);
+        }
+    };
+
+    const handleSettingChange = async (key: keyof SimulationSettings, value: number) => {
+        if (!settings) return;
+        const newSettings = { ...settings, [key]: value };
+        setSettings(newSettings);
+
+        // Debounced save - update on server
+        try {
+            setSettingsLoading(true);
+            await updateSimulationSettings(newSettings);
+        } catch (err) {
+            console.error('Failed to update setting:', err);
+            setActionError(err instanceof Error ? err.message : 'Failed to update setting');
+        } finally {
+            setSettingsLoading(false);
+        }
+    };
+
+    const handleResetSettings = async () => {
+        try {
+            setSettingsLoading(true);
+            const defaultSettings = await resetSimulationSettings();
+            setSettings(defaultSettings);
+        } catch (err) {
+            console.error('Failed to reset settings:', err);
+            setActionError(err instanceof Error ? err.message : 'Failed to reset settings');
+        } finally {
+            setSettingsLoading(false);
         }
     };
 
@@ -418,6 +467,240 @@ export default function SimulationControlPanel() {
                                     </Collapse>
                                 </Box>
                             </>
+                        )}
+                    </Paper>
+                )}
+
+                {/* Simulation Settings Section - Only visible in Mock mode */}
+                {!isLive && settings && (
+                    <Paper sx={{ p: 3 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <TuneIcon color="primary" />
+                                <Typography variant="h6">Simulation Settings</Typography>
+                                <Tooltip title="Fine-tune how the mock market data is generated. Lower values = smoother/calmer markets, higher values = more volatile/realistic.">
+                                    <InfoOutlinedIcon sx={{ fontSize: 18, color: 'grey.500', cursor: 'help' }} />
+                                </Tooltip>
+                            </Box>
+                            <IconButton
+                                size="small"
+                                onClick={() => setShowSettings(!showSettings)}
+                            >
+                                {showSettings ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                            </IconButton>
+                        </Box>
+
+                        <Collapse in={showSettings}>
+                            <Stack spacing={3} sx={{ mt: 2 }}>
+                                {/* Volatility & Drift Section */}
+                                <Box>
+                                    <Typography variant="subtitle2" color="primary.light" gutterBottom>
+                                        Price Movement
+                                    </Typography>
+                                    <Divider sx={{ mb: 2 }} />
+
+                                    <Box sx={{ mb: 3 }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Typography variant="body2">Volatility Scale</Typography>
+                                            <Typography variant="body2" color="primary.main" fontWeight="bold">
+                                                {(settings.volatilityScale * 100).toFixed(0)}%
+                                            </Typography>
+                                        </Box>
+                                        <Slider
+                                            value={settings.volatilityScale}
+                                            min={0.01}
+                                            max={1.0}
+                                            step={0.01}
+                                            onChange={(_, v) => handleSettingChange('volatilityScale', v as number)}
+                                            disabled={settingsLoading}
+                                            sx={{ mt: 1 }}
+                                        />
+                                        <Typography variant="caption" color="grey.500">
+                                            How much the price moves per bar (lower = smoother)
+                                        </Typography>
+                                    </Box>
+
+                                    <Box sx={{ mb: 3 }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Typography variant="body2">Drift Scale</Typography>
+                                            <Typography variant="body2" color="primary.main" fontWeight="bold">
+                                                {(settings.driftScale * 100).toFixed(0)}%
+                                            </Typography>
+                                        </Box>
+                                        <Slider
+                                            value={settings.driftScale}
+                                            min={0.01}
+                                            max={1.0}
+                                            step={0.01}
+                                            onChange={(_, v) => handleSettingChange('driftScale', v as number)}
+                                            disabled={settingsLoading}
+                                            sx={{ mt: 1 }}
+                                        />
+                                        <Typography variant="caption" color="grey.500">
+                                            How strong the trend direction is applied
+                                        </Typography>
+                                    </Box>
+
+                                    <Box sx={{ mb: 3 }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Typography variant="body2">Max Return/Bar</Typography>
+                                            <Typography variant="body2" color="primary.main" fontWeight="bold">
+                                                ±{(settings.maxReturnPerBar * 100).toFixed(1)}%
+                                            </Typography>
+                                        </Box>
+                                        <Slider
+                                            value={settings.maxReturnPerBar}
+                                            min={0.005}
+                                            max={0.1}
+                                            step={0.005}
+                                            onChange={(_, v) => handleSettingChange('maxReturnPerBar', v as number)}
+                                            disabled={settingsLoading}
+                                            sx={{ mt: 1 }}
+                                        />
+                                        <Typography variant="caption" color="grey.500">
+                                            Maximum price change per candle (clamps extreme moves)
+                                        </Typography>
+                                    </Box>
+                                </Box>
+
+                                {/* Mean Reversion & Fat Tails */}
+                                <Box>
+                                    <Typography variant="subtitle2" color="primary.light" gutterBottom>
+                                        Market Behavior
+                                    </Typography>
+                                    <Divider sx={{ mb: 2 }} />
+
+                                    <Box sx={{ mb: 3 }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Typography variant="body2">Mean Reversion</Typography>
+                                            <Typography variant="body2" color="primary.main" fontWeight="bold">
+                                                {(settings.meanReversionStrength * 100).toFixed(0)}%
+                                            </Typography>
+                                        </Box>
+                                        <Slider
+                                            value={settings.meanReversionStrength}
+                                            min={0}
+                                            max={1.0}
+                                            step={0.05}
+                                            onChange={(_, v) => handleSettingChange('meanReversionStrength', v as number)}
+                                            disabled={settingsLoading}
+                                            sx={{ mt: 1 }}
+                                        />
+                                        <Typography variant="caption" color="grey.500">
+                                            How quickly price returns toward the mean (higher = less trending)
+                                        </Typography>
+                                    </Box>
+
+                                    <Box sx={{ mb: 3 }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Typography variant="body2">Fat Tail Probability</Typography>
+                                            <Typography variant="body2" color="primary.main" fontWeight="bold">
+                                                {(settings.fatTailMultiplier * 100).toFixed(0)}%
+                                            </Typography>
+                                        </Box>
+                                        <Slider
+                                            value={settings.fatTailMultiplier}
+                                            min={0}
+                                            max={2.0}
+                                            step={0.1}
+                                            onChange={(_, v) => handleSettingChange('fatTailMultiplier', v as number)}
+                                            disabled={settingsLoading}
+                                            sx={{ mt: 1 }}
+                                        />
+                                        <Typography variant="caption" color="grey.500">
+                                            Chance of sudden large moves (higher = more spikes)
+                                        </Typography>
+                                    </Box>
+                                </Box>
+
+                                {/* Candle Appearance */}
+                                <Box>
+                                    <Typography variant="subtitle2" color="primary.light" gutterBottom>
+                                        Candle Appearance
+                                    </Typography>
+                                    <Divider sx={{ mb: 2 }} />
+
+                                    <Box sx={{ mb: 3 }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Typography variant="body2">High/Low Range</Typography>
+                                            <Typography variant="body2" color="primary.main" fontWeight="bold">
+                                                {(settings.highLowRangeMultiplier * 100).toFixed(0)}%
+                                            </Typography>
+                                        </Box>
+                                        <Slider
+                                            value={settings.highLowRangeMultiplier}
+                                            min={0.1}
+                                            max={1.0}
+                                            step={0.05}
+                                            onChange={(_, v) => handleSettingChange('highLowRangeMultiplier', v as number)}
+                                            disabled={settingsLoading}
+                                            sx={{ mt: 1 }}
+                                        />
+                                        <Typography variant="caption" color="grey.500">
+                                            How long the candle wicks are (higher = longer wicks)
+                                        </Typography>
+                                    </Box>
+
+                                    <Box sx={{ mb: 3 }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Typography variant="body2">Live Tick Noise</Typography>
+                                            <Typography variant="body2" color="primary.main" fontWeight="bold">
+                                                {(settings.liveTickNoise * 100).toFixed(0)}%
+                                            </Typography>
+                                        </Box>
+                                        <Slider
+                                            value={settings.liveTickNoise}
+                                            min={0}
+                                            max={0.1}
+                                            step={0.005}
+                                            onChange={(_, v) => handleSettingChange('liveTickNoise', v as number)}
+                                            disabled={settingsLoading}
+                                            sx={{ mt: 1 }}
+                                        />
+                                        <Typography variant="caption" color="grey.500">
+                                            How much the current candle jitters while forming
+                                        </Typography>
+                                    </Box>
+
+                                    <Box sx={{ mb: 3 }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Typography variant="body2">Pattern Strength</Typography>
+                                            <Typography variant="body2" color="primary.main" fontWeight="bold">
+                                                {(settings.patternOverlayStrength * 100).toFixed(0)}%
+                                            </Typography>
+                                        </Box>
+                                        <Slider
+                                            value={settings.patternOverlayStrength}
+                                            min={0}
+                                            max={2.0}
+                                            step={0.1}
+                                            onChange={(_, v) => handleSettingChange('patternOverlayStrength', v as number)}
+                                            disabled={settingsLoading}
+                                            sx={{ mt: 1 }}
+                                        />
+                                        <Typography variant="caption" color="grey.500">
+                                            How strongly chart patterns (breakouts, pullbacks) affect price
+                                        </Typography>
+                                    </Box>
+                                </Box>
+
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<RestartAltIcon />}
+                                    onClick={handleResetSettings}
+                                    disabled={settingsLoading}
+                                    size="small"
+                                    sx={{ alignSelf: 'flex-start' }}
+                                >
+                                    Reset to Defaults
+                                </Button>
+                            </Stack>
+                        </Collapse>
+
+                        {!showSettings && (
+                            <Typography variant="caption" color="grey.500">
+                                Click to expand and fine-tune simulation parameters
+                            </Typography>
                         )}
                     </Paper>
                 )}

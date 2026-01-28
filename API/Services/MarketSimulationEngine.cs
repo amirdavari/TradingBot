@@ -9,14 +9,18 @@ namespace API.Services;
 public class MarketSimulationEngine
 {
     private readonly ILogger<MarketSimulationEngine> _logger;
+    private readonly ISimulationSettingsService _settingsService;
 
     // EWMA volatility state (per symbol)
     private readonly Dictionary<string, decimal> _ewmaVolatility = new();
     private const decimal EwmaLambda = 0.94m; // EWMA decay factor
 
-    public MarketSimulationEngine(ILogger<MarketSimulationEngine> logger)
+    public MarketSimulationEngine(
+        ILogger<MarketSimulationEngine> logger,
+        ISimulationSettingsService settingsService)
     {
         _logger = logger;
+        _settingsService = settingsService;
     }
 
     #region Main Generation Method
@@ -32,6 +36,9 @@ public class MarketSimulationEngine
         int timeframeMinutes,
         DateTime currentTime)
     {
+        // Get current simulation settings
+        var settings = _settingsService.GetSettingsAsync().GetAwaiter().GetResult();
+
         var candles = new List<Candle>();
         var seed = config.Seed ?? (config.Symbol?.GetHashCode() ?? 0) ^ (int)(startTime.Ticks / TimeSpan.TicksPerDay);
         var random = new Random(seed);
@@ -68,7 +75,8 @@ public class MarketSimulationEngine
                 regimeParams,
                 overlay,
                 random,
-                config);
+                config,
+                settings);
 
             // Apply EWMA volatility clustering
             currentVolatility = UpdateEwmaVolatility(config.Symbol ?? "DEFAULT", dailyReturn, config.BaseVolatility);
@@ -88,7 +96,8 @@ public class MarketSimulationEngine
                 timeframeMinutes,
                 bar == totalBars - 1 && candleTime == RoundDownToTimeframe(currentTime, timeframeMinutes),
                 currentTime,
-                config);
+                config,
+                settings);
 
             candles.Add(candle);
 
@@ -114,61 +123,63 @@ public class MarketSimulationEngine
         RegimeParameters regimeParams,
         PatternOverlayConfig? overlay,
         Random random,
-        ScenarioConfig config)
+        ScenarioConfig config,
+        SimulationSettings settings)
     {
         // Base return from normal distribution (Box-Muller transform)
         var u1 = random.NextDouble();
         var u2 = random.NextDouble();
         var normalReturn = (decimal)(Math.Sqrt(-2.0 * Math.Log(Math.Max(0.0001, u1))) * Math.Cos(2.0 * Math.PI * u2));
 
-        // Scale by volatility and regime - REDUCED scaling for smoother moves
-        // Divide by sqrt of bars per day (~78 for 5min) to get per-bar volatility
-        var scaledVolatility = currentVolatility * regimeParams.VolatilityMultiplier * 0.15m;
+        // Scale by volatility and regime - configurable scaling for smoother moves
+        var scaledVolatility = currentVolatility * regimeParams.VolatilityMultiplier * settings.VolatilityScale;
         var baseReturn = normalReturn * scaledVolatility;
 
-        // Add drift from regime (also scaled down)
-        baseReturn += regimeParams.Drift * 0.1m;
+        // Add drift from regime (configurable scale)
+        baseReturn += regimeParams.Drift * settings.DriftScale;
 
-        // Apply mean reversion (helps smooth out extreme moves)
+        // Apply mean reversion (configurable strength)
         if (regimeParams.MeanReversion > 0 && prevClose > 0)
         {
             var deviation = (currentPrice - prevClose) / prevClose;
-            baseReturn -= deviation * regimeParams.MeanReversion * 0.3m;
+            baseReturn -= deviation * regimeParams.MeanReversion * settings.MeanReversionStrength;
         }
 
-        // Fat tail injection - much lower probability and smaller impact
-        if (random.NextDouble() < (double)(regimeParams.FatTailProbability * 0.1m))
+        // Fat tail injection - configurable probability and size
+        if (random.NextDouble() < (double)(regimeParams.FatTailProbability * settings.FatTailMultiplier))
         {
-            var tailMultiplier = 1.5m + (decimal)random.NextDouble() * 1.0m; // 1.5-2.5x normal move
+            var tailRange = settings.FatTailMaxSize - settings.FatTailMinSize;
+            var tailMultiplier = settings.FatTailMinSize + (decimal)random.NextDouble() * tailRange;
             baseReturn *= tailMultiplier * (random.NextDouble() > 0.5 ? 1 : -1);
         }
 
         // Pattern overlay effects
         if (overlay != null)
         {
-            baseReturn = ApplyPatternOverlay(baseReturn, overlay, random, currentPrice);
+            baseReturn = ApplyPatternOverlay(baseReturn, overlay, random, currentPrice, settings);
         }
 
-        // Clamp to reasonable bounds (-2% to +2% per bar for intraday)
-        return Math.Max(-0.02m, Math.Min(0.02m, baseReturn));
+        // Clamp to configurable bounds
+        return Math.Max(-settings.MaxReturnPerBar, Math.Min(settings.MaxReturnPerBar, baseReturn));
     }
 
     /// <summary>
     /// Applies pattern overlay effects to the base return.
     /// </summary>
-    private decimal ApplyPatternOverlay(decimal baseReturn, PatternOverlayConfig overlay, Random random, decimal currentPrice)
+    private decimal ApplyPatternOverlay(decimal baseReturn, PatternOverlayConfig overlay, Random random, decimal currentPrice, SimulationSettings settings)
     {
         var direction = overlay.Direction.ToUpperInvariant() == "UP" ? 1m : -1m;
         var noise = (decimal)(random.NextDouble() - 0.5) * 0.0005m; // Tiny noise
+        var strength = settings.PatternOverlayStrength;
 
         return overlay.Type switch
         {
-            PatternOverlayType.BREAKOUT => direction * 0.003m + noise, // Gentle breakout move
-            PatternOverlayType.PULLBACK => -direction * 0.001m * (overlay.DepthATR ?? 0.8m) + noise,
-            PatternOverlayType.GAP_AND_GO => direction * 0.004m + noise, // Gap continuation
-            PatternOverlayType.MEAN_REVERSION => -baseReturn * 0.3m + noise, // Partial reversion
-            PatternOverlayType.DOUBLE_TOP or PatternOverlayType.DOUBLE_BOTTOM => baseReturn * 0.5m, // Reduced momentum
-            _ => baseReturn + direction * 0.001m
+            PatternOverlayType.BREAKOUT => direction * 0.003m * strength + noise, // Gentle breakout move
+            PatternOverlayType.PULLBACK => -direction * 0.001m * (overlay.DepthATR ?? 0.8m) * strength + noise,
+            PatternOverlayType.GAP_AND_GO => direction * 0.004m * strength + noise, // Gap continuation
+            PatternOverlayType.MEAN_REVERSION => -baseReturn * 0.3m * strength + noise, // Partial reversion
+            PatternOverlayType.DOUBLE_TOP or PatternOverlayType.DOUBLE_BOTTOM => baseReturn * 0.5m * strength, // Reduced momentum
+            _ => baseReturn + direction * 0.001m * strength
         };
     }
 
@@ -212,7 +223,8 @@ public class MarketSimulationEngine
         int timeframeMinutes,
         bool isLiveCandle,
         DateTime currentTime,
-        ScenarioConfig config)
+        ScenarioConfig config,
+        SimulationSettings settings)
     {
         // Open: previous close + potential gap
         var open = prevClose;
@@ -236,16 +248,16 @@ public class MarketSimulationEngine
             // Interpolate close based on progress
             close = open + (newClose - open) * (decimal)progress;
 
-            // Very minimal tick noise for live feel (almost imperceptible)
-            var tickNoise = volatility * 0.01m * (decimal)(random.NextDouble() - 0.5);
+            // Configurable tick noise for live feel
+            var tickNoise = volatility * settings.LiveTickNoise * (decimal)(random.NextDouble() - 0.5);
             close += tickNoise;
         }
 
-        // High/Low: based on intrabar range proportional to volatility (reduced)
-        var range = Math.Abs(open - close) * 0.3m + volatility * Math.Max(open, close) * (decimal)(0.1 + random.NextDouble() * 0.2);
+        // High/Low: based on intrabar range proportional to volatility (configurable)
+        var range = Math.Abs(open - close) * settings.HighLowRangeMultiplier + volatility * Math.Max(open, close) * (decimal)(0.1 + random.NextDouble() * 0.2);
 
-        var high = Math.Max(open, close) + range * (decimal)random.NextDouble() * 0.3m;
-        var low = Math.Min(open, close) - range * (decimal)random.NextDouble() * 0.3m;
+        var high = Math.Max(open, close) + range * (decimal)random.NextDouble() * settings.HighLowRangeMultiplier;
+        var low = Math.Min(open, close) - range * (decimal)random.NextDouble() * settings.HighLowRangeMultiplier;
 
         // Ensure consistency
         high = Math.Max(high, Math.Max(open, close));

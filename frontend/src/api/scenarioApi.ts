@@ -65,6 +65,32 @@ export interface SymbolScenarioAssignment {
     strategy: string;
 }
 
+/**
+ * Simulation settings for configuring market data generation parameters
+ */
+export interface SimulationSettings {
+    /** Volatility scaling factor (0.01 - 1.0), default: 0.15 */
+    volatilityScale: number;
+    /** Drift scaling factor (0.01 - 1.0), default: 0.1 */
+    driftScale: number;
+    /** Mean reversion strength (0 - 1.0), default: 0.3 */
+    meanReversionStrength: number;
+    /** Fat tail probability multiplier (0 - 2.0), default: 0.1 */
+    fatTailMultiplier: number;
+    /** Fat tail min size (1.0 - 3.0), default: 1.5 */
+    fatTailMinSize: number;
+    /** Fat tail max size (min - 5.0), default: 2.5 */
+    fatTailMaxSize: number;
+    /** Max return per bar (0.005 - 0.1), default: 0.02 */
+    maxReturnPerBar: number;
+    /** Live tick noise (0 - 0.1), default: 0.01 */
+    liveTickNoise: number;
+    /** High/low range multiplier (0.1 - 1.0), default: 0.3 */
+    highLowRangeMultiplier: number;
+    /** Pattern overlay strength (0 - 2.0), default: 1.0 */
+    patternOverlayStrength: number;
+}
+
 // =============================================================================
 // API Endpoints Extension
 // =============================================================================
@@ -77,6 +103,8 @@ const SCENARIO_ENDPOINTS = {
     reset: '/api/scenario/reset',
     redistribute: '/api/scenario/redistribute',
     enabled: (enabled: boolean) => `/api/scenario/enabled/${enabled}`,
+    settings: '/api/scenario/settings',
+    settingsReset: '/api/scenario/settings/reset',
 };
 
 // =============================================================================
@@ -139,6 +167,32 @@ export async function setScenarioEnabled(enabled: boolean): Promise<void> {
  */
 export async function redistributeScenarios(): Promise<ScenarioState> {
     return fetchWithConfig<ScenarioState>(SCENARIO_ENDPOINTS.redistribute, {
+        method: 'POST',
+    });
+}
+
+/**
+ * Get current simulation settings
+ */
+export async function getSimulationSettings(): Promise<SimulationSettings> {
+    return fetchWithConfig<SimulationSettings>(SCENARIO_ENDPOINTS.settings);
+}
+
+/**
+ * Update simulation settings
+ */
+export async function updateSimulationSettings(settings: SimulationSettings): Promise<SimulationSettings> {
+    return fetchWithConfig<SimulationSettings>(SCENARIO_ENDPOINTS.settings, {
+        method: 'PUT',
+        body: JSON.stringify(settings),
+    });
+}
+
+/**
+ * Reset simulation settings to defaults
+ */
+export async function resetSimulationSettings(): Promise<SimulationSettings> {
+    return fetchWithConfig<SimulationSettings>(SCENARIO_ENDPOINTS.settingsReset, {
         method: 'POST',
     });
 }

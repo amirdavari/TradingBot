@@ -21,6 +21,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Account> Accounts { get; set; }
     public DbSet<RiskSettingsEntity> RiskSettings { get; set; }
     public DbSet<ScenarioConfigEntity> ScenarioConfigs { get; set; }
+    public DbSet<SimulationSettingsEntity> SimulationSettings { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -133,6 +134,24 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.ActivePreset).HasMaxLength(100).IsRequired();
             entity.Property(e => e.ConfigJson).IsRequired();
             entity.Property(e => e.IsEnabled).IsRequired();
+            entity.Property(e => e.UpdatedAt).IsRequired();
+        });
+
+        // Configure SimulationSettings (Singleton)
+        modelBuilder.Entity<SimulationSettingsEntity>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedNever(); // Manually set to 1
+            entity.Property(e => e.VolatilityScale).HasPrecision(5, 4).IsRequired();
+            entity.Property(e => e.DriftScale).HasPrecision(5, 4).IsRequired();
+            entity.Property(e => e.MeanReversionStrength).HasPrecision(5, 4).IsRequired();
+            entity.Property(e => e.FatTailMultiplier).HasPrecision(5, 4).IsRequired();
+            entity.Property(e => e.FatTailMinSize).HasPrecision(5, 4).IsRequired();
+            entity.Property(e => e.FatTailMaxSize).HasPrecision(5, 4).IsRequired();
+            entity.Property(e => e.MaxReturnPerBar).HasPrecision(5, 4).IsRequired();
+            entity.Property(e => e.LiveTickNoise).HasPrecision(5, 4).IsRequired();
+            entity.Property(e => e.HighLowRangeMultiplier).HasPrecision(5, 4).IsRequired();
+            entity.Property(e => e.PatternOverlayStrength).HasPrecision(5, 4).IsRequired();
             entity.Property(e => e.UpdatedAt).IsRequired();
         });
 

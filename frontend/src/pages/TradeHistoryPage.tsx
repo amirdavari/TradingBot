@@ -29,7 +29,7 @@ export default function TradeHistoryPage() {
     }
 
     return (
-        <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', p: 3, overflow: 'hidden' }}>
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 3, overflow: 'hidden' }}>
             <Box sx={{ mb: 2, flexShrink: 0 }}>
                 {statistics && <StatisticsOverview statistics={statistics} />}
             </Box>

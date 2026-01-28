@@ -111,6 +111,7 @@ public class ScannerService
                     HasNews = false,
                     Confidence = 0,
                     Reasons = new List<string>(),
+                    CurrentPrice = 0,
                     HasError = true,
                     ErrorMessage = $"Insufficient data: Only {candles.Count} candles available (need at least 10)"
                 };
@@ -162,6 +163,7 @@ public class ScannerService
                 HasNews = hasNews,
                 Confidence = signal.Confidence,
                 Reasons = reasons,
+                CurrentPrice = currentPrice,
                 HasError = false,
                 ErrorMessage = null
             };
@@ -180,6 +182,7 @@ public class ScannerService
                 HasNews = false,
                 Confidence = 0,
                 Reasons = new List<string>(),
+                CurrentPrice = 0,
                 HasError = true,
                 ErrorMessage = $"Error: {ex.Message}"
             };

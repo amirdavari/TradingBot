@@ -41,6 +41,11 @@ public class ScanResult
     public List<string> Reasons { get; set; } = new();
 
     /// <summary>
+    /// Current price of the symbol at scan time.
+    /// </summary>
+    public decimal CurrentPrice { get; set; }
+
+    /// <summary>
     /// Indicates if there was an error scanning this symbol.
     /// </summary>
     public bool HasError { get; set; }

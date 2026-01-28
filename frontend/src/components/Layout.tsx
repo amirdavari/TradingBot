@@ -77,7 +77,7 @@ export default function Layout({ children }: LayoutProps) {
                 component="main"
                 sx={{
                     flexGrow: 1,
-                    overflow: 'hidden',
+                    overflow: 'auto',
                     height: '100%',
                 }}
             >

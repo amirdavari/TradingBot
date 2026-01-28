@@ -14,13 +14,16 @@ namespace API.Controllers;
 public class ScenarioController : ControllerBase
 {
     private readonly IScenarioService _scenarioService;
+    private readonly ISimulationSettingsService _simulationSettingsService;
     private readonly IHubContext<TradingHub> _hubContext;
 
     public ScenarioController(
         IScenarioService scenarioService,
+        ISimulationSettingsService simulationSettingsService,
         IHubContext<TradingHub> hubContext)
     {
         _scenarioService = scenarioService;
+        _simulationSettingsService = simulationSettingsService;
         _hubContext = hubContext;
     }
 
@@ -107,5 +110,42 @@ public class ScenarioController : ControllerBase
     {
         var assignments = _scenarioService.GetSymbolAssignments();
         return Ok(assignments);
+    }
+
+    /// <summary>
+    /// Gets current simulation settings.
+    /// </summary>
+    [HttpGet("settings")]
+    public async Task<ActionResult<SimulationSettings>> GetSimulationSettings()
+    {
+        var settings = await _simulationSettingsService.GetSettingsAsync();
+        return Ok(settings);
+    }
+
+    /// <summary>
+    /// Updates simulation settings.
+    /// </summary>
+    [HttpPut("settings")]
+    public async Task<ActionResult<SimulationSettings>> UpdateSimulationSettings([FromBody] SimulationSettings settings)
+    {
+        if (settings == null)
+        {
+            return BadRequest(new { error = "Settings are required" });
+        }
+
+        var updated = await _simulationSettingsService.UpdateSettingsAsync(settings);
+        await _hubContext.Clients.All.SendAsync(TradingHubMethods.ReceiveChartRefresh, new { symbols = Array.Empty<string>() });
+        return Ok(updated);
+    }
+
+    /// <summary>
+    /// Resets simulation settings to defaults.
+    /// </summary>
+    [HttpPost("settings/reset")]
+    public async Task<ActionResult<SimulationSettings>> ResetSimulationSettings()
+    {
+        var defaults = await _simulationSettingsService.ResetToDefaultsAsync();
+        await _hubContext.Clients.All.SendAsync(TradingHubMethods.ReceiveChartRefresh, new { symbols = Array.Empty<string>() });
+        return Ok(defaults);
     }
 }
