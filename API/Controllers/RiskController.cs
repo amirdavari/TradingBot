@@ -111,4 +111,46 @@ public class RiskController : ControllerBase
             return StatusCode(500, "Failed to update risk settings");
         }
     }
+
+    /// <summary>
+    /// Gets auto-trade settings.
+    /// </summary>
+    [HttpGet("autotrade")]
+    [ProducesResponseType(typeof(AutoTradeSettings), StatusCodes.Status200OK)]
+    public async Task<ActionResult<AutoTradeSettings>> GetAutoTradeSettings()
+    {
+        var settings = await _riskService.GetAutoTradeSettingsAsync();
+        return Ok(settings);
+    }
+
+    /// <summary>
+    /// Updates auto-trade settings.
+    /// </summary>
+    [HttpPut("autotrade")]
+    [ProducesResponseType(typeof(AutoTradeSettings), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<AutoTradeSettings>> UpdateAutoTradeSettings([FromBody] AutoTradeSettings settings)
+    {
+        if (settings.MinConfidence < 0 || settings.MinConfidence > 100)
+            return BadRequest("Min confidence must be between 0 and 100");
+
+        if (settings.RiskPercent <= 0 || settings.RiskPercent > 10)
+            return BadRequest("Risk percent must be between 0 and 10");
+
+        if (settings.MaxConcurrentTrades < 1 || settings.MaxConcurrentTrades > 10)
+            return BadRequest("Max concurrent trades must be between 1 and 10");
+
+        try
+        {
+            var updated = await _riskService.UpdateAutoTradeSettingsAsync(settings);
+            _logger.LogInformation("AutoTrade settings updated: Enabled={Enabled}, MinConf={MinConf}", 
+                updated.Enabled, updated.MinConfidence);
+            return Ok(updated);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating auto-trade settings");
+            return StatusCode(500, "Failed to update auto-trade settings");
+        }
+    }
 }

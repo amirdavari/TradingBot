@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
@@ -27,6 +27,7 @@ import LoadingSpinner from './LoadingSpinner';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { useScanner } from '../hooks/useScanner';
 import { useOpenTrades } from '../hooks/useOpenTrades';
+import { useSignalRScanResults } from '../hooks/useSignalR';
 
 // Static company name lookup for known symbols
 const COMPANY_NAMES: Record<string, string> = {
@@ -71,7 +72,7 @@ export default function WatchlistPanel({ selectedSymbol, onSymbolChange }: Watch
     const { watchlist, loading, addSymbol, deleteSymbol } = useWatchlist();
     const symbols = watchlist.map((item) => item.symbol);
     // Scanner results updated via SignalR (no polling needed)
-    const { scanResults, loading: scanLoading, reload: reloadScanner } = useScanner(symbols, symbols.length > 0);
+    const { scanResults, loading: scanLoading, reload: reloadScanner, setScanResults } = useScanner(symbols, symbols.length > 0);
     const { trades } = useOpenTrades(); // Uses SignalR for real-time updates
     const [deletingSymbol, setDeletingSymbol] = useState<string | null>(null);
     const [newSymbol, setNewSymbol] = useState('');
@@ -80,6 +81,42 @@ export default function WatchlistPanel({ selectedSymbol, onSymbolChange }: Watch
     const [showAddForm, setShowAddForm] = useState(false);
     const [orderBy, setOrderBy] = useState<'symbol' | 'company' | 'volume' | 'trend' | 'confidence'>('symbol');
     const [order, setOrder] = useState<'asc' | 'desc'>('asc');
+
+    // Keep symbols ref up to date for SignalR callback (avoids stale closure)
+    const symbolsRef = useRef(symbols);
+    useEffect(() => {
+        symbolsRef.current = symbols;
+    }, [symbols]);
+
+    // Listen for SignalR scanner updates - merge with existing results
+    // Only update symbols that are in the watchlist, keep others unchanged
+    useSignalRScanResults((results) => {
+        console.log('[WatchlistPanel] Received scanner results via SignalR:', results.length);
+        
+        // Create a map of new results for quick lookup
+        const newResultsMap = new Map(results.map(r => [r.symbol, r]));
+        const currentSymbols = symbolsRef.current; // Use ref to get current symbols
+        
+        // Merge: update existing symbols if we have new data, keep others
+        setScanResults(prev => {
+            const merged = prev.map(existing => {
+                const updated = newResultsMap.get(existing.symbol);
+                return updated || existing; // Use new data if available, otherwise keep existing
+            });
+            
+            // Also add any new symbols from SignalR that are in our watchlist but weren't in prev
+            const existingSymbols = new Set(prev.map(r => r.symbol));
+            const watchlistSymbolSet = new Set(currentSymbols);
+            
+            results.forEach(result => {
+                if (!existingSymbols.has(result.symbol) && watchlistSymbolSet.has(result.symbol)) {
+                    merged.push(result);
+                }
+            });
+            
+            return merged;
+        });
+    });
 
     // Create a lookup map for quick result access
     const resultMap = new Map(scanResults.map((result) => [result.symbol, result]));

@@ -44,21 +44,21 @@ export default function NewsPanel({ news, loading, symbol }: NewsPanelProps) {
     );
 
     return (
-        <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', flexShrink: 0, maxHeight: '250px', overflow: 'auto' }}>
-            <Typography variant="h6" gutterBottom>News</Typography>
+        <Box sx={{ p: 1, borderTop: 1, borderColor: 'divider', flexShrink: 0, maxHeight: '140px', overflow: 'auto' }}>
+            <Typography variant="subtitle2" gutterBottom>News</Typography>
             {loading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}>
                     <LoadingSpinner />
                 </Box>
             ) : news.length > 0 ? (
                 <TableContainer>
                     <Table size="small" sx={{ minWidth: 650 }}>
                         <TableHead>
-                            <TableRow>
-                                <TableCell width="140px"><strong>Time</strong></TableCell>
-                                <TableCell width="100px"><strong>Sentiment</strong></TableCell>
+                            <TableRow sx={{ '& th': { py: 0.25, fontSize: '0.7rem' } }}>
+                                <TableCell width="100px"><strong>Time</strong></TableCell>
+                                <TableCell width="80px"><strong>Sentiment</strong></TableCell>
                                 <TableCell><strong>Title</strong></TableCell>
-                                <TableCell width="100px"><strong>Source</strong></TableCell>
+                                <TableCell width="80px"><strong>Source</strong></TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -68,11 +68,12 @@ export default function NewsPanel({ news, loading, symbol }: NewsPanelProps) {
                                     hover
                                     sx={{ 
                                         '&:last-child td, &:last-child th': { border: 0 },
-                                        cursor: 'default'
+                                        cursor: 'default',
+                                        '& td': { py: 0.25 }
                                     }}
                                 >
                                     <TableCell>
-                                        <Typography variant="caption">
+                                        <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
                                             {new Date(item.publishedAt).toLocaleString('de-DE', {
                                                 day: '2-digit',
                                                 month: '2-digit',
@@ -87,21 +88,16 @@ export default function NewsPanel({ news, loading, symbol }: NewsPanelProps) {
                                             label={item.sentiment}
                                             size="small"
                                             color={getSentimentColor(item.sentiment)}
-                                            sx={{ textTransform: 'capitalize' }}
+                                            sx={{ textTransform: 'capitalize', height: 18, fontSize: '0.6rem', '& .MuiChip-icon': { fontSize: '0.8rem' } }}
                                         />
                                     </TableCell>
                                     <TableCell>
-                                        <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                                            {item.title}
+                                        <Typography variant="caption" sx={{ fontWeight: 'medium', fontSize: '0.7rem' }}>
+                                            {item.title.length > 80 ? `${item.title.substring(0, 80)}...` : item.title}
                                         </Typography>
-                                        {item.summary && (
-                                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                                                {item.summary.length > 120 ? `${item.summary.substring(0, 120)}...` : item.summary}
-                                            </Typography>
-                                        )}
                                     </TableCell>
                                     <TableCell>
-                                        <Typography variant="caption" color="text.secondary">
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
                                             {item.source}
                                         </Typography>
                                     </TableCell>
@@ -111,7 +107,7 @@ export default function NewsPanel({ news, loading, symbol }: NewsPanelProps) {
                     </Table>
                 </TableContainer>
             ) : (
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="caption" color="text.secondary">
                     No news available for {symbol}
                 </Typography>
             )}

@@ -1,4 +1,4 @@
-import { type TradeSignal, type ScanResult, type Candle, type NewsItem, type Account, type RiskCalculation, type RiskSettings, type PaperTrade, type TradeStatistics } from '../models';
+import { type TradeSignal, type ScanResult, type Candle, type NewsItem, type Account, type RiskCalculation, type RiskSettings, type AutoTradeSettings, type PaperTrade, type TradeStatistics } from '../models';
 import { API_CONFIG, fetchWithConfig } from './config';
 
 export async function getSignal(
@@ -75,6 +75,21 @@ export async function getRiskSettings(): Promise<RiskSettings> {
 
 export async function updateRiskSettings(settings: RiskSettings): Promise<RiskSettings> {
     return fetchWithConfig<RiskSettings>('/api/risk/settings', {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(settings)
+    });
+}
+
+// Auto-Trade Settings
+export async function getAutoTradeSettings(): Promise<AutoTradeSettings> {
+    return fetchWithConfig<AutoTradeSettings>('/api/risk/autotrade');
+}
+
+export async function updateAutoTradeSettings(settings: AutoTradeSettings): Promise<AutoTradeSettings> {
+    return fetchWithConfig<AutoTradeSettings>('/api/risk/autotrade', {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json'

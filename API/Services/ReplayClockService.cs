@@ -1,6 +1,8 @@
+using API.Data;
 using API.Hubs;
 using API.Models;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace API.Services;
 
@@ -137,7 +139,7 @@ public class ReplayClockService : BackgroundService
 
     /// <summary>
     /// Broadcasts scanner results to all connected clients.
-    /// Runs scans for default symbols and pushes results via SignalR.
+    /// Scans the user's watchlist symbols, not just default symbols.
     /// </summary>
     private async Task BroadcastScannerResultsAsync()
     {
@@ -145,9 +147,23 @@ public class ReplayClockService : BackgroundService
         {
             using var scope = _serviceProvider.CreateScope();
             var scannerService = scope.ServiceProvider.GetRequiredService<ScannerService>();
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            // Scan default symbols (the ones frontend uses for DAX stocks)
-            var results = await scannerService.ScanStocksAsync(timeframe: 5);
+            // Get watchlist symbols from database
+            var watchlistSymbols = await dbContext.WatchlistSymbols
+                .Select(w => w.Symbol)
+                .ToArrayAsync();
+
+            if (watchlistSymbols.Length == 0)
+            {
+                _logger.LogDebug("No watchlist symbols to scan");
+                return;
+            }
+
+            _logger.LogInformation("Scanning {Count} watchlist symbols via SignalR (Replay)", watchlistSymbols.Length);
+
+            // Scan watchlist symbols (not default symbols)
+            var results = await scannerService.ScanStocksAsync(watchlistSymbols, timeframe: 5);
 
             await _hubContext.Clients.All.SendAsync(TradingHubMethods.ReceiveScanResults, results);
             _logger.LogDebug("Broadcasted {Count} scanner results via SignalR", results.Count);

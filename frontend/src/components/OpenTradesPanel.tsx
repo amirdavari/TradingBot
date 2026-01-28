@@ -1,5 +1,5 @@
 import { Box, Card, CardContent, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, IconButton, Button } from '@mui/material';
-import { Refresh as RefreshIcon, TrendingUp, TrendingDown, Close as CloseIcon } from '@mui/icons-material';
+import { Refresh as RefreshIcon, TrendingUp, TrendingDown } from '@mui/icons-material';
 import { useOpenTrades } from '../hooks/useOpenTrades';
 import { closeTrade } from '../api/tradingApi';
 import LoadingSpinner from './LoadingSpinner';
@@ -87,8 +87,16 @@ export function OpenTradesPanel({ onTradeClick }: OpenTradesPanelProps) {
     }
 
     return (
-        <Card sx={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', minHeight: 0, maxHeight: '100%', overflow: 'hidden', p: 2, pb: 3 }}>
+        <Card sx={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
+            <CardContent sx={{ 
+                flexGrow: 1, 
+                display: 'flex', 
+                flexDirection: 'column', 
+                minHeight: 0, 
+                overflow: 'hidden', 
+                p: 2, 
+                '&:last-child': { pb: 2 } 
+            }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5, flexShrink: 0 }}>
                     <Typography variant="h6" component="h2">
                         Open Trades ({trades.length})
@@ -105,22 +113,23 @@ export function OpenTradesPanel({ onTradeClick }: OpenTradesPanelProps) {
                         No open trades
                     </Typography>
                 ) : (
-                    <TableContainer component={Paper} variant="outlined" sx={{ flexGrow: 1, overflow: 'auto', minHeight: 0 }}>
-                        <Table size="small" stickyHeader>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>Symbol</TableCell>
-                                    <TableCell>Direction</TableCell>
-                                    <TableCell align="right">Entry</TableCell>
-                                    <TableCell align="right">Stop Loss</TableCell>
-                                    <TableCell align="right">Take Profit</TableCell>
-                                    <TableCell align="right">Position</TableCell>
-                                    <TableCell align="right">Invest</TableCell>
-                                    <TableCell align="right">PnL</TableCell>
-                                    <TableCell>Opened</TableCell>
-                                    <TableCell align="center">Action</TableCell>
-                                </TableRow>
-                            </TableHead>
+                    <Box sx={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
+                        <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: '100%', overflow: 'auto' }}>
+                            <Table size="small" stickyHeader>
+                                <TableHead>
+                                    <TableRow sx={{ '& th': { py: 0.5, fontSize: '0.75rem' } }}>
+                                        <TableCell sx={{ bgcolor: 'background.paper' }}>Symbol</TableCell>
+                                        <TableCell sx={{ bgcolor: 'background.paper' }}>Dir</TableCell>
+                                        <TableCell align="right" sx={{ bgcolor: 'background.paper' }}>Entry</TableCell>
+                                        <TableCell align="right" sx={{ bgcolor: 'background.paper' }}>SL</TableCell>
+                                        <TableCell align="right" sx={{ bgcolor: 'background.paper' }}>TP</TableCell>
+                                        <TableCell align="right" sx={{ bgcolor: 'background.paper' }}>Pos</TableCell>
+                                        <TableCell align="right" sx={{ bgcolor: 'background.paper' }}>Invest</TableCell>
+                                        <TableCell align="right" sx={{ bgcolor: 'background.paper' }}>PnL</TableCell>
+                                        <TableCell sx={{ bgcolor: 'background.paper' }}>Opened</TableCell>
+                                        <TableCell align="center" sx={{ bgcolor: 'background.paper' }}></TableCell>
+                                    </TableRow>
+                                </TableHead>
                             <TableBody>
                                 {trades.map((trade) => {
                                     // Backend now calculates unrealized PnL based on current price
@@ -137,11 +146,12 @@ export function OpenTradesPanel({ onTradeClick }: OpenTradesPanelProps) {
                                                 cursor: onTradeClick ? 'pointer' : 'default',
                                                 '&:hover': {
                                                     backgroundColor: onTradeClick ? 'action.hover' : 'transparent'
-                                                }
+                                                },
+                                                '& td': { py: 0.5 }
                                             }}
                                         >
                                             <TableCell>
-                                                <Typography variant="body2" fontWeight="medium">
+                                                <Typography variant="caption" fontWeight="medium">
                                                     {trade.symbol}
                                                 </Typography>
                                             </TableCell>
@@ -151,37 +161,38 @@ export function OpenTradesPanel({ onTradeClick }: OpenTradesPanelProps) {
                                                     label={trade.direction}
                                                     color={trade.direction === 'LONG' ? 'success' : 'error'}
                                                     size="small"
+                                                    sx={{ height: 20, fontSize: '0.65rem', '& .MuiChip-icon': { fontSize: '0.8rem' } }}
                                                 />
                                             </TableCell>
                                             <TableCell align="right">
-                                                <Typography variant="body2">
+                                                <Typography variant="caption">
                                                     {formatCurrency(trade.entryPrice)}
                                                 </Typography>
                                             </TableCell>
                                             <TableCell align="right">
-                                                <Typography variant="body2" color="error.main">
+                                                <Typography variant="caption" color="error.main">
                                                     {formatCurrency(trade.stopLoss)}
                                                 </Typography>
                                             </TableCell>
                                             <TableCell align="right">
-                                                <Typography variant="body2" color="success.main">
+                                                <Typography variant="caption" color="success.main">
                                                     {formatCurrency(trade.takeProfit)}
                                                 </Typography>
                                             </TableCell>
                                             <TableCell align="right">
-                                                <Typography variant="body2">
-                                                    {trade.positionSize.toFixed(4)}
+                                                <Typography variant="caption">
+                                                    {trade.positionSize.toFixed(2)}
                                                 </Typography>
                                             </TableCell>
                                             <TableCell align="right">
-                                                <Typography variant="body2">
+                                                <Typography variant="caption">
                                                     {formatCurrency(trade.investAmount)}
                                                 </Typography>
                                             </TableCell>
                                             <TableCell align="right">
                                                 <Box>
                                                     <Typography
-                                                        variant="body2"
+                                                        variant="caption"
                                                         fontWeight="medium"
                                                         color={getPnLColor(pnl)}
                                                     >
@@ -190,13 +201,14 @@ export function OpenTradesPanel({ onTradeClick }: OpenTradesPanelProps) {
                                                     <Typography
                                                         variant="caption"
                                                         color={getPnLColor(pnl)}
+                                                        sx={{ display: 'block', fontSize: '0.6rem' }}
                                                     >
                                                         {formatPercent(pnlPercent)}
                                                     </Typography>
                                                 </Box>
                                             </TableCell>
                                             <TableCell>
-                                                <Typography variant="caption" color="text.secondary">
+                                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
                                                     {formatDateTime(trade.openedAt)}
                                                 </Typography>
                                             </TableCell>
@@ -205,9 +217,8 @@ export function OpenTradesPanel({ onTradeClick }: OpenTradesPanelProps) {
                                                     size="small"
                                                     variant="outlined"
                                                     color="error"
-                                                    startIcon={<CloseIcon />}
                                                     onClick={(e) => handleCloseTrade(trade.id, trade.symbol, e)}
-                                                    sx={{ minWidth: '90px' }}
+                                                    sx={{ minWidth: '50px', py: 0, px: 1, fontSize: '0.65rem' }}
                                                 >
                                                     Close
                                                 </Button>
@@ -218,6 +229,7 @@ export function OpenTradesPanel({ onTradeClick }: OpenTradesPanelProps) {
                             </TableBody>
                         </Table>
                     </TableContainer>
+                    </Box>
                 )}
             </CardContent>
         </Card>

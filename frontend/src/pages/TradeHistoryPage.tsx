@@ -1,4 +1,4 @@
-import { Box, Container, Paper } from '@mui/material';
+import { Box } from '@mui/material';
 import { useTradeHistory } from '../hooks/useTradeHistory';
 import { useTradeStatistics } from '../hooks/useTradeStatistics';
 import StatisticsOverview from '../components/StatisticsOverview';
@@ -29,14 +29,14 @@ export default function TradeHistoryPage() {
     }
 
     return (
-        <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', p: 3 }}>
+        <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', p: 3, overflow: 'hidden' }}>
             <Box sx={{ mb: 2, flexShrink: 0 }}>
                 {statistics && <StatisticsOverview statistics={statistics} />}
             </Box>
 
-            <Paper sx={{ p: 2, flexGrow: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+            <Box sx={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
                 <TradeHistoryTable trades={trades} onTradeClick={handleTradeClick} />
-            </Paper>
+            </Box>
         </Box>
     );
 }

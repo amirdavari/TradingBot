@@ -105,6 +105,12 @@ builder.Services.AddScoped<PaperTradeService>();
 // Register PaperTrade Monitor Background Service
 builder.Services.AddHostedService<PaperTradeMonitorService>();
 
+// Register Live Chart Refresh Service (pushes SignalR updates in Live mode)
+builder.Services.AddHostedService<LiveChartRefreshService>();
+
+// Register Auto-Trade Service (monitors watchlist and opens trades automatically)
+builder.Services.AddHostedService<AutoTradeService>();
+
 var app = builder.Build();
 
 // Ensure database is created (MVP: auto-migration)

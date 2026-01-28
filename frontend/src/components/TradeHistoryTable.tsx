@@ -90,14 +90,15 @@ export default function TradeHistoryTable({ trades, onTradeClick }: TradeHistory
     };
 
     return (
-        <Box>
-            <Typography variant="h6" sx={{ mb: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
+            <Typography variant="h6" sx={{ mb: 2, flexShrink: 0 }}>
                 Trade History
             </Typography>
-            <TableContainer component={Paper}>
-                <Table size="small" >
-                    <TableHead>
-                        <TableRow>
+            <Paper sx={{ flexGrow: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <TableContainer sx={{ flexGrow: 1, overflow: 'auto' }}>
+                    <Table size="small" stickyHeader>
+                        <TableHead>
+                            <TableRow>
                             <TableCell>
                                 <TableSortLabel
                                     active={sortField === 'closedAt'}
@@ -251,6 +252,7 @@ export default function TradeHistoryTable({ trades, onTradeClick }: TradeHistory
                     </TableBody>
                 </Table>
             </TableContainer>
+            </Paper>
         </Box>
     );
 }

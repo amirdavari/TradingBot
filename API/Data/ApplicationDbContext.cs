@@ -123,5 +123,38 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.MaxCapitalPercent).HasPrecision(5, 2).IsRequired();
             entity.Property(e => e.UpdatedAt).IsRequired();
         });
+
+        // Seed default watchlist with German DAX stocks
+        var defaultWatchlist = new (string Symbol, string Company)[]
+        {
+            // DAX 40
+            ("SAP.DE", "SAP"), ("SIE.DE", "Siemens"), ("ALV.DE", "Allianz"), ("BAS.DE", "BASF"),
+            ("IFX.DE", "Infineon"), ("BMW.DE", "BMW"), ("MBG.DE", "Mercedes-Benz"), ("VOW3.DE", "Volkswagen"),
+            ("DTE.DE", "Dt. Telekom"), ("RWE.DE", "RWE"), ("EOAN.DE", "E.ON"), ("MUV2.DE", "Munich Re"),
+            ("CBK.DE", "Commerzbank"), ("DBK.DE", "Deutsche Bank"), ("ENR.DE", "Siemens Energy"),
+            ("ADS.DE", "Adidas"), ("BAYN.DE", "Bayer"), ("HEI.DE", "Heidelberg Mat."), ("ZAL.DE", "Zalando"),
+            ("DB1.DE", "Dt. Börse"), ("RHM.DE", "Rheinmetall"), ("MTX.DE", "MTU Aero"), ("AIR.DE", "Airbus"),
+            ("SRT3.DE", "Sartorius"), ("SY1.DE", "Symrise"), ("HEN3.DE", "Henkel"), ("1COV.DE", "Covestro"),
+            ("P911.DE", "Porsche AG"), ("VNA.DE", "Vonovia"), ("FRE.DE", "Fresenius"), ("HFG.DE", "HelloFresh"),
+            ("DHER.DE", "Delivery Hero"), ("BEI.DE", "Beiersdorf"), ("HNR1.DE", "Hannover Rück"), ("BNR.DE", "Brenntag"),
+            ("SHL.DE", "Siemens Health."), ("FME.DE", "Fresenius MC"), ("MRK.DE", "Merck KGaA"), ("QIA.DE", "Qiagen"),
+            ("PAH3.DE", "Porsche SE"),
+            // MDAX / Tech
+            ("TMV.DE", "TeamViewer"), ("AIXA.DE", "Aixtron"), ("S92.DE", "SMA Solar"),
+            ("EVT.DE", "Evotec"), ("AFX.DE", "Carl Zeiss"), ("NEM.DE", "Nemetschek"),
+            ("WAF.DE", "Siltronic"), ("JEN.DE", "Jenoptik"), ("COK.DE", "Cancom"),
+            ("GFT.DE", "GFT Tech"), ("NA9.DE", "Nagarro"), ("SMHN.DE", "Süss MicroTec"),
+        };
+
+        var seedDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        modelBuilder.Entity<WatchlistSymbol>().HasData(
+            defaultWatchlist.Select((item, index) => new WatchlistSymbol
+            {
+                Id = index + 1,
+                Symbol = item.Symbol,
+                CompanyName = item.Company,
+                CreatedAt = seedDate
+            })
+        );
     }
 }

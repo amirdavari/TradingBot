@@ -7,9 +7,8 @@ import ChartPanel from '../components/ChartPanel';
 import TradeSetupPanel from '../components/TradeSetupPanel';
 import { OpenTradesPanel } from '../components/OpenTradesPanel';
 import { getCandles, getSignal, getNews, getAccount, createTrade } from '../api/tradingApi';
-import type { Candle, TradeSignal, NewsItem, Account, RiskCalculation } from '../models';
-import { useSignalRChartRefresh, useSignalRAccountUpdate } from '../hooks/useSignalR';
-import { useReplayState } from '../hooks/useReplayState';
+import type { Candle, TradeSignal, NewsItem, Account, RiskCalculation, ScanResult } from '../models';
+import { useSignalRChartRefresh, useSignalRAccountUpdate, useSignalRScanResults } from '../hooks/useSignalR';
 
 export default function Dashboard() {
     const { symbol: urlSymbol } = useParams<{ symbol: string }>();
@@ -22,10 +21,6 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(false);
     const [newsLoading, setNewsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    // Get replay state to determine if we're in Live mode
-    const { state: replayState } = useReplayState();
-    const isLiveMode = replayState?.mode === 'LIVE';
 
     console.log('[Dashboard] State:', {
         selectedSymbol,
@@ -82,7 +77,13 @@ export default function Dashboard() {
             setSignal({ ...signalData });
             setError(null); // Clear any previous errors on successful refresh
 
-            console.log(`[Dashboard] Refreshed data: ${candlesData.length} candles, last candle: ${candlesData[candlesData.length - 1]?.time}`);
+            // Enhanced logging to debug data changes
+            const lastCandle = candlesData[candlesData.length - 1];
+            console.log(`[Dashboard] Refreshed data: ${candlesData.length} candles`, {
+                lastCandleTime: lastCandle?.time,
+                lastCandleClose: lastCandle?.close,
+                signalDirection: signalData?.direction
+            });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to refresh data';
             setError(errorMessage);
@@ -99,27 +100,39 @@ export default function Dashboard() {
 
     useSignalRChartRefresh(handleChartRefresh);
 
-    // Polling for Live mode - refresh chart data every 60 seconds
-    // In Replay mode, SignalR pushes updates so no polling needed
+    // NOTE: Polling removed - SignalR handles real-time updates in both Live and Replay mode
+    // LiveChartRefreshService broadcasts ReceiveChartRefresh every 30s in Live mode (Yahoo has 15-20 min delay anyway)
+    // ReplayClockService broadcasts ReceiveChartRefresh on each tick in Replay mode
+
+    // Keep selectedSymbol ref current for SignalR callback
+    const selectedSymbolRef = useRef(selectedSymbol);
     useEffect(() => {
-        if (!isLiveMode) {
-            console.log('[Dashboard] Not in Live mode, skipping polling');
-            return; // Only poll in Live mode
+        selectedSymbolRef.current = selectedSymbol;
+    }, [selectedSymbol]);
+
+    // Update signal from SignalR scanner results to keep TradeSetup in sync with Watchlist
+    const handleScanResults = useCallback((results: ScanResult[]) => {
+        const currentSymbol = selectedSymbolRef.current;
+        const scanResult = results.find(r => r.symbol === currentSymbol);
+        
+        if (scanResult) {
+            console.log('[Dashboard] Updating signal from scanner results for', currentSymbol);
+            // Convert ScanResult to TradeSignal format for TradeSetupPanel
+            // Note: ScanResult doesn't have entry/stopLoss/takeProfit, so we keep existing signal
+            // but update direction and confidence to stay in sync
+            setSignal(prev => {
+                if (!prev || prev.symbol !== currentSymbol) return prev;
+                return {
+                    ...prev,
+                    direction: scanResult.trend,
+                    confidence: scanResult.confidence,
+                    reasons: scanResult.reasons
+                };
+            });
         }
+    }, []);
 
-        console.log('[Dashboard] Starting Live mode polling (60s interval)');
-        const pollInterval = setInterval(() => {
-            if (hasInitialFetch.current && !loadingRef.current) {
-                console.log('[Dashboard] Live mode poll - refreshing data');
-                refreshData();
-            }
-        }, 1000); // Poll every 1 second
-
-        return () => {
-            console.log('[Dashboard] Stopping Live mode polling');
-            clearInterval(pollInterval);
-        };
-    }, [isLiveMode, refreshData]);
+    useSignalRScanResults(handleScanResults);
 
     // Real-time account updates via SignalR
     const handleAccountUpdate = useCallback((updatedAccount: Account) => {
@@ -269,9 +282,9 @@ export default function Dashboard() {
     };
 
     return (
-        <Box sx={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', gap: 1, p: 1 }}>
+        <Box sx={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', gap: 1, p: 1, overflow: 'hidden' }}>
             {/* Main Content */}
-            <Grid container spacing={1} sx={{ flexShrink: 0, height: '65vh', minHeight: '500px' }}>
+            <Grid container spacing={1} sx={{ flexShrink: 0, height: '65%', minHeight: '450px' }}>
                 {/* Watchlist Panel */}
                 <Grid size={3.5} sx={{ height: '100%', display: 'flex' }}>
                     <WatchlistPanel
@@ -309,8 +322,8 @@ export default function Dashboard() {
                 </Grid>
             </Grid>
 
-            {/* Open Trades Panel - scrollbar with remaining space */}
-            <Box sx={{ flexGrow: 1, minHeight: 0, overflow: 'hidden', display: 'flex' }}>
+            {/* Open Trades Panel - takes remaining space */}
+            <Box sx={{ flexGrow: 1, minHeight: '150px', overflow: 'hidden', display: 'flex' }}>
                 <OpenTradesPanel onTradeClick={handleTradeClick} />
             </Box>
         </Box>

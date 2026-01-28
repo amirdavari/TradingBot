@@ -27,5 +27,27 @@ public class RiskSettingsEntity
     /// </summary>
     public decimal MaxCapitalPercent { get; set; } = 20.0m;
     
+    // === Auto-Trade Settings ===
+    
+    /// <summary>
+    /// Whether auto-trading is enabled.
+    /// </summary>
+    public bool AutoTradeEnabled { get; set; } = false;
+    
+    /// <summary>
+    /// Minimum confidence level required for auto-trade (0-100).
+    /// </summary>
+    public int AutoTradeMinConfidence { get; set; } = 100;
+    
+    /// <summary>
+    /// Risk percentage to use for auto-trades.
+    /// </summary>
+    public decimal AutoTradeRiskPercent { get; set; } = 1.0m;
+    
+    /// <summary>
+    /// Maximum number of concurrent auto-trades allowed.
+    /// </summary>
+    public int AutoTradeMaxConcurrent { get; set; } = 3;
+    
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

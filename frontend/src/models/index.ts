@@ -87,6 +87,13 @@ export interface RiskSettings {
     maxCapitalPercent: number;
 }
 
+export interface AutoTradeSettings {
+    enabled: boolean;
+    minConfidence: number;
+    riskPercent: number;
+    maxConcurrentTrades: number;
+}
+
 export interface PaperTrade {
     id: number;
     symbol: string;

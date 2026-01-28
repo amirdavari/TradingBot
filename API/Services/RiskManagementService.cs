@@ -225,6 +225,14 @@ public class RiskManagementService
     }
 
     /// <summary>
+    /// Gets current risk settings (full entity for internal use).
+    /// </summary>
+    public async Task<RiskSettingsEntity> GetSettingsAsync()
+    {
+        return await GetOrCreateRiskSettingsAsync();
+    }
+
+    /// <summary>
     /// Gets current risk settings.
     /// </summary>
     public async Task<RiskSettings> GetRiskSettingsAsync()
@@ -237,6 +245,39 @@ public class RiskManagementService
             MinRiskRewardRatio = settings.MinRiskRewardRatio,
             MaxCapitalPercent = settings.MaxCapitalPercent
         };
+    }
+
+    /// <summary>
+    /// Gets auto-trade settings.
+    /// </summary>
+    public async Task<AutoTradeSettings> GetAutoTradeSettingsAsync()
+    {
+        var settings = await GetOrCreateRiskSettingsAsync();
+        return new AutoTradeSettings
+        {
+            Enabled = settings.AutoTradeEnabled,
+            MinConfidence = settings.AutoTradeMinConfidence,
+            RiskPercent = settings.AutoTradeRiskPercent,
+            MaxConcurrentTrades = settings.AutoTradeMaxConcurrent
+        };
+    }
+
+    /// <summary>
+    /// Updates auto-trade settings.
+    /// </summary>
+    public async Task<AutoTradeSettings> UpdateAutoTradeSettingsAsync(AutoTradeSettings newSettings)
+    {
+        var settings = await GetOrCreateRiskSettingsAsync();
+        
+        settings.AutoTradeEnabled = newSettings.Enabled;
+        settings.AutoTradeMinConfidence = newSettings.MinConfidence;
+        settings.AutoTradeRiskPercent = newSettings.RiskPercent;
+        settings.AutoTradeMaxConcurrent = newSettings.MaxConcurrentTrades;
+        settings.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return newSettings;
     }
 
     /// <summary>
@@ -267,4 +308,15 @@ public class RiskSettings
     public decimal MaxRiskPercent { get; set; }
     public decimal MinRiskRewardRatio { get; set; }
     public decimal MaxCapitalPercent { get; set; }
+}
+
+/// <summary>
+/// Auto-trade settings.
+/// </summary>
+public class AutoTradeSettings
+{
+    public bool Enabled { get; set; }
+    public int MinConfidence { get; set; }
+    public decimal RiskPercent { get; set; }
+    public int MaxConcurrentTrades { get; set; }
 }

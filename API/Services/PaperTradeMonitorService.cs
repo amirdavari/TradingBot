@@ -9,7 +9,7 @@ namespace API.Services;
 /// <summary>
 /// Background service that monitors open paper trades and automatically closes them
 /// when stop loss or take profit conditions are met.
-/// Pushes trade close notifications via SignalR.
+/// Also periodically broadcasts PnL updates for open trades via SignalR.
 /// </summary>
 public class PaperTradeMonitorService : BackgroundService
 {
@@ -17,6 +17,8 @@ public class PaperTradeMonitorService : BackgroundService
     private readonly IHubContext<TradingHub> _hubContext;
     private readonly ILogger<PaperTradeMonitorService> _logger;
     private readonly TimeSpan _checkInterval = TimeSpan.FromSeconds(5); // Check every 5 seconds
+    private readonly TimeSpan _pnlUpdateInterval = TimeSpan.FromSeconds(10); // PnL updates every 10 seconds
+    private DateTime _lastPnlUpdate = DateTime.MinValue;
 
     public PaperTradeMonitorService(
         IServiceProvider serviceProvider,
@@ -83,10 +85,75 @@ public class PaperTradeMonitorService : BackgroundService
                     TradingHubMethods.ReceiveAccountUpdate,
                     account);
             }
+
+            // Periodically broadcast PnL updates for open trades
+            var now = DateTime.UtcNow;
+            if ((now - _lastPnlUpdate) >= _pnlUpdateInterval)
+            {
+                _lastPnlUpdate = now;
+                await BroadcastPnLUpdatesAsync(tradeService);
+            }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error checking trades");
+        }
+    }
+
+    /// <summary>
+    /// Broadcasts unrealized PnL updates for all open trades via SignalR.
+    /// </summary>
+    private async Task BroadcastPnLUpdatesAsync(PaperTradeService tradeService)
+    {
+        try
+        {
+            var openTrades = await tradeService.GetOpenTradesAsync();
+            
+            if (openTrades.Count == 0)
+            {
+                return;
+            }
+
+            _logger.LogDebug("Broadcasting PnL updates for {Count} open trades", openTrades.Count);
+
+            // Calculate and broadcast updated PnL for each trade
+            foreach (var trade in openTrades)
+            {
+                var unrealizedPnL = await tradeService.CalculateUnrealizedPnLAsync(trade);
+                var pnlPercent = trade.InvestAmount > 0 
+                    ? (unrealizedPnL / trade.InvestAmount) * 100 
+                    : 0;
+
+                // Create updated trade object with current PnL
+                var updatedTrade = new PaperTrade
+                {
+                    Id = trade.Id,
+                    Symbol = trade.Symbol,
+                    Direction = trade.Direction,
+                    EntryPrice = trade.EntryPrice,
+                    StopLoss = trade.StopLoss,
+                    TakeProfit = trade.TakeProfit,
+                    PositionSize = trade.PositionSize,
+                    Quantity = trade.Quantity,
+                    InvestAmount = trade.InvestAmount,
+                    Confidence = trade.Confidence,
+                    Reasons = trade.Reasons,
+                    Status = trade.Status,
+                    OpenedAt = trade.OpenedAt,
+                    Notes = trade.Notes,
+                    // Set unrealized PnL
+                    PnL = unrealizedPnL,
+                    PnLPercent = pnlPercent
+                };
+
+                await _hubContext.Clients.All.SendAsync(
+                    TradingHubMethods.ReceiveTradeUpdate,
+                    updatedTrade);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error broadcasting PnL updates");
         }
     }
 }
