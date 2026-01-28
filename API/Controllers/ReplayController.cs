@@ -7,146 +7,43 @@ using Microsoft.AspNetCore.SignalR;
 namespace API.Controllers;
 
 /// <summary>
-/// Controller for replay simulation control (Dev/Simulation only).
-/// Provides endpoints to control replay mode and time advancement.
+/// Controller for market mode management (Live/Mock).
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class ReplayController : ControllerBase
 {
     private readonly MarketTimeProvider _timeProvider;
-    private readonly ReplayClockService _clockService;
     private readonly IHubContext<TradingHub> _hubContext;
-    private readonly ILogger<ReplayController> _logger;
 
     public ReplayController(
         MarketTimeProvider timeProvider,
-        ReplayClockService clockService,
-        IHubContext<TradingHub> hubContext,
-        ILogger<ReplayController> logger)
+        IHubContext<TradingHub> hubContext)
     {
         _timeProvider = timeProvider;
-        _clockService = clockService;
         _hubContext = hubContext;
-        _logger = logger;
     }
 
     /// <summary>
-    /// Gets the current replay state.
+    /// Gets the current market mode state.
     /// </summary>
-    /// <returns>Current replay state including mode, time, speed, and running status</returns>
     [HttpGet("state")]
     public ActionResult<ReplayStateResponse> GetState()
     {
         var state = _timeProvider.GetReplayState();
-
-        var response = new ReplayStateResponse
+        return Ok(new ReplayStateResponse
         {
             Mode = state.Mode == MarketMode.Live ? "LIVE" : "REPLAY",
             CurrentTime = state.CurrentTime,
             ReplayStartTime = state.ReplayStartTime,
             Speed = state.Speed,
             IsRunning = state.IsRunning
-        };
-
-        return Ok(response);
+        });
     }
 
     /// <summary>
-    /// Starts the replay simulation.
+    /// Sets the market mode (Live or Mock/Replay).
     /// </summary>
-    [HttpPost("start")]
-    public async Task<IActionResult> Start()
-    {
-        var mode = _timeProvider.GetMode();
-
-        if (mode != MarketMode.Replay)
-        {
-            return BadRequest(new { error = "Cannot start replay in Live mode. Switch to Replay mode first." });
-        }
-
-        await _clockService.StartAsync();
-        _logger.LogInformation("Replay started via API");
-
-        return Ok(new { message = "Replay started", state = GetStateResponse() });
-    }
-
-    /// <summary>
-    /// Pauses the replay simulation.
-    /// </summary>
-    [HttpPost("pause")]
-    public async Task<IActionResult> Pause()
-    {
-        await _clockService.PauseAsync();
-        _logger.LogInformation("Replay paused via API");
-
-        return Ok(new { message = "Replay paused", state = GetStateResponse() });
-    }
-
-    /// <summary>
-    /// Resets the replay to the start time.
-    /// </summary>
-    [HttpPost("reset")]
-    public async Task<IActionResult> Reset()
-    {
-        await _clockService.ResetAsync();
-        _logger.LogInformation("Replay reset via API");
-
-        return Ok(new { message = "Replay reset", state = GetStateResponse() });
-    }
-
-    /// <summary>
-    /// Sets the replay speed multiplier.
-    /// </summary>
-    /// <param name="request">Speed request containing the speed multiplier</param>
-    [HttpPost("speed")]
-    public async Task<IActionResult> SetSpeed([FromBody] SetSpeedRequest request)
-    {
-        if (request.Speed <= 0)
-        {
-            return BadRequest(new { error = "Speed must be greater than 0" });
-        }
-
-        if (request.Speed > 100)
-        {
-            return BadRequest(new { error = "Speed cannot exceed 100x" });
-        }
-
-        await _clockService.SetSpeedAsync(request.Speed);
-        _logger.LogInformation("Replay speed set to {Speed}x via API", request.Speed);
-
-        return Ok(new { message = $"Speed set to {request.Speed}x", state = GetStateResponse() });
-    }
-
-    /// <summary>
-    /// Sets the replay start time.
-    /// </summary>
-    /// <param name="request">Request containing the start time</param>
-    [HttpPost("time")]
-    public async Task<IActionResult> SetReplayTime([FromBody] SetReplayTimeRequest request)
-    {
-        var mode = _timeProvider.GetMode();
-
-        if (mode != MarketMode.Replay)
-        {
-            return BadRequest(new { error = "Cannot set replay time in Live mode" });
-        }
-
-        if (request.StartTime > DateTime.UtcNow)
-        {
-            return BadRequest(new { error = "Start time cannot be in the future" });
-        }
-
-        await _clockService.SetReplayStartTimeAsync(request.StartTime);
-        _logger.LogInformation("Replay start time set to {Time} via API", request.StartTime);
-
-        return Ok(new { message = "Replay time set", state = GetStateResponse() });
-    }
-
-    /// <summary>
-    /// Sets the market mode (Live or Replay).
-    /// </summary>
-    /// <param name="request">Request containing the mode</param>
     [HttpPost("mode")]
     public async Task<IActionResult> SetMode([FromBody] SetModeRequest request)
     {
@@ -162,32 +59,21 @@ public class ReplayController : ControllerBase
             return BadRequest(new { error = "Invalid mode. Must be 'LIVE' or 'REPLAY'" });
         }
 
-        // Pause replay when switching modes
-        if (_timeProvider.GetMode() == MarketMode.Replay)
-        {
-            await _clockService.PauseAsync();
-        }
-
         _timeProvider.SetMode(mode.Value);
 
-        // Clear rate limit cache to avoid timeout issues after mode switch
+        // Clear rate limit cache for Yahoo provider
         Data.YahooFinanceMarketDataProvider.ClearRateLimitCache();
 
-        _logger.LogInformation("Market mode set to {Mode} via API (cache cleared)", request.Mode);
-
-        // Broadcast mode change via SignalR to notify all clients
+        // Broadcast mode change via SignalR
         var stateResponse = GetStateResponse();
         await _hubContext.Clients.All.SendAsync(TradingHubMethods.ReceiveReplayState, stateResponse);
 
-        // Trigger chart refresh for all symbols after mode change
+        // Trigger chart refresh
         await _hubContext.Clients.All.SendAsync(TradingHubMethods.ReceiveChartRefresh, new { symbols = Array.Empty<string>() });
 
         return Ok(new { message = $"Mode set to {request.Mode}", state = stateResponse });
     }
 
-    /// <summary>
-    /// Helper method to get current state as response DTO.
-    /// </summary>
     private ReplayStateResponse GetStateResponse()
     {
         var state = _timeProvider.GetReplayState();

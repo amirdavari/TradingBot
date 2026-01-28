@@ -1,43 +1,112 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Box,
     Paper,
     Typography,
     Button,
-    ButtonGroup,
-    TextField,
     Switch,
     FormControlLabel,
     Stack,
-    Divider,
     Alert,
     CircularProgress,
+    Select,
+    MenuItem,
+    FormControl,
+    InputLabel,
+    Chip,
+    Tooltip,
 } from '@mui/material';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import PauseIcon from '@mui/icons-material/Pause';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import { useReplayState } from '../hooks/useReplayState';
+import type { ScenarioState } from '../api/scenarioApi';
+import {
+    MarketRegime,
+    getScenarioState,
+    applyScenarioPreset,
+    setScenarioEnabled,
+    resetScenario,
+    getRegimeDisplayName,
+    getRegimeColor,
+} from '../api/scenarioApi';
 
 /**
  * Simulation Control Panel for development and testing.
- * Allows switching between Live and Replay mode and controlling replay simulation.
+ * Allows switching between Live (Yahoo) and Mock data provider.
  */
 export default function SimulationControlPanel() {
     const {
         state,
         loading,
         error,
-        start,
-        pause,
-        reset,
-        setSpeed,
-        setTime,
         setMode,
-    } = useReplayState(); // Uses SignalR for real-time updates
+    } = useReplayState();
 
-    const [selectedDate, setSelectedDate] = useState('');
     const [actionLoading, setActionLoading] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
+
+    // Scenario state
+    const [scenarioState, setScenarioState] = useState<ScenarioState | null>(null);
+    const [scenarioLoading, setScenarioLoading] = useState(false);
+    const [selectedPreset, setSelectedPreset] = useState<string>('');
+
+    // Load scenario state on mount
+    useEffect(() => {
+        loadScenarioState();
+    }, []);
+
+    const loadScenarioState = async () => {
+        try {
+            const data = await getScenarioState();
+            setScenarioState(data);
+            if (data.activeConfig) {
+                setSelectedPreset(data.activeConfig.name);
+            }
+        } catch (err) {
+            console.error('Failed to load scenario state:', err);
+        }
+    };
+
+    const handleScenarioToggle = async () => {
+        if (!scenarioState) return;
+        setScenarioLoading(true);
+        setActionError(null);
+        try {
+            await setScenarioEnabled(!scenarioState.isEnabled);
+            await loadScenarioState();
+        } catch (err) {
+            setActionError(err instanceof Error ? err.message : 'Failed to toggle scenario');
+        } finally {
+            setScenarioLoading(false);
+        }
+    };
+
+    const handlePresetChange = async (presetName: string) => {
+        setScenarioLoading(true);
+        setActionError(null);
+        try {
+            await applyScenarioPreset(presetName);
+            setSelectedPreset(presetName);
+            await loadScenarioState();
+        } catch (err) {
+            setActionError(err instanceof Error ? err.message : 'Failed to apply preset');
+        } finally {
+            setScenarioLoading(false);
+        }
+    };
+
+    const handleScenarioReset = async () => {
+        setScenarioLoading(true);
+        setActionError(null);
+        try {
+            await resetScenario();
+            await loadScenarioState();
+        } catch (err) {
+            setActionError(err instanceof Error ? err.message : 'Failed to reset scenario');
+        } finally {
+            setScenarioLoading(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -56,11 +125,7 @@ export default function SimulationControlPanel() {
     }
 
     const isLive = state.mode === 'LIVE';
-    const isRunning = state.isRunning;
 
-    /**
-     * Handle mode toggle between Live and Replay
-     */
     const handleModeToggle = async () => {
         setActionLoading(true);
         setActionError(null);
@@ -73,90 +138,13 @@ export default function SimulationControlPanel() {
         }
     };
 
-    /**
-     * Handle speed change
-     */
-    const handleSpeedChange = async (speed: number) => {
-        setActionLoading(true);
-        setActionError(null);
-        try {
-            await setSpeed(speed);
-        } catch (err) {
-            setActionError(err instanceof Error ? err.message : 'Failed to set speed');
-        } finally {
-            setActionLoading(false);
-        }
-    };
-
-    /**
-     * Handle replay date/time change
-     */
-    const handleSetReplayTime = async () => {
-        if (!selectedDate) {
-            setActionError('Please select a date and time');
-            return;
-        }
-
-        setActionLoading(true);
-        setActionError(null);
-        try {
-            // Convert local datetime-local input to ISO string
-            const date = new Date(selectedDate);
-            await setTime(date.toISOString());
-            setSelectedDate('');
-        } catch (err) {
-            setActionError(err instanceof Error ? err.message : 'Failed to set time');
-        } finally {
-            setActionLoading(false);
-        }
-    };
-
-    /**
-     * Handle start/pause/reset actions
-     */
-    const handleStart = async () => {
-        setActionLoading(true);
-        setActionError(null);
-        try {
-            await start();
-        } catch (err) {
-            setActionError(err instanceof Error ? err.message : 'Failed to start');
-        } finally {
-            setActionLoading(false);
-        }
-    };
-
-    const handlePause = async () => {
-        setActionLoading(true);
-        setActionError(null);
-        try {
-            await pause();
-        } catch (err) {
-            setActionError(err instanceof Error ? err.message : 'Failed to pause');
-        } finally {
-            setActionLoading(false);
-        }
-    };
-
-    const handleReset = async () => {
-        setActionLoading(true);
-        setActionError(null);
-        try {
-            await reset();
-        } catch (err) {
-            setActionError(err instanceof Error ? err.message : 'Failed to reset');
-        } finally {
-            setActionLoading(false);
-        }
-    };
-
     return (
         <Box sx={{ p: 3, maxWidth: 800, mx: 'auto' }}>
             <Typography variant="h4" gutterBottom>
                 Simulation Control Panel
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Development tool for testing with historical data
+                Switch between live market data and mock simulation
             </Typography>
 
             {(error || actionError) && (
@@ -166,10 +154,10 @@ export default function SimulationControlPanel() {
             )}
 
             <Stack spacing={3}>
-                {/* Mode Toggle */}
+                {/* Data Provider Toggle */}
                 <Paper sx={{ p: 3 }}>
                     <Typography variant="h6" gutterBottom>
-                        Market Mode
+                        Data Provider
                     </Typography>
                     <FormControlLabel
                         control={
@@ -182,7 +170,7 @@ export default function SimulationControlPanel() {
                         label={
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <Typography>
-                                    {isLive ? 'Live Mode' : 'Replay Mode'}
+                                    {isLive ? 'Yahoo Finance (Live)' : 'Mock Provider (Simulation)'}
                                 </Typography>
                                 {isLive ? (
                                     <Box sx={{ px: 1, py: 0.5, bgcolor: 'success.main', borderRadius: 1 }}>
@@ -193,7 +181,7 @@ export default function SimulationControlPanel() {
                                 ) : (
                                     <Box sx={{ px: 1, py: 0.5, bgcolor: 'warning.main', borderRadius: 1 }}>
                                         <Typography variant="caption" sx={{ color: 'white', fontWeight: 'bold' }}>
-                                            SIMULATION
+                                            MOCK
                                         </Typography>
                                     </Box>
                                 )}
@@ -201,155 +189,137 @@ export default function SimulationControlPanel() {
                         }
                     />
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                        Toggle between live market data and historical replay
+                        {isLive 
+                            ? 'Using delayed Yahoo Finance data (15-20 min delay)'
+                            : 'Using generated mock data with configurable scenarios'
+                        }
                     </Typography>
                 </Paper>
 
-                {/* Replay Controls - Only visible in Replay mode */}
+                {/* Market Scenarios Section - Only visible in Mock mode */}
                 {!isLive && (
-                    <>
-                        {/* Date/Time Selection */}
-                        <Paper sx={{ p: 3 }}>
-                            <Typography variant="h6" gutterBottom>
-                                Replay Start Time
-                            </Typography>
-                            <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                                <TextField
-                                    type="datetime-local"
-                                    value={selectedDate}
-                                    onChange={(e) => setSelectedDate(e.target.value)}
-                                    disabled={actionLoading}
-                                    fullWidth
-                                    InputLabelProps={{ shrink: true }}
-                                    helperText="Select a date and time in the past"
-                                />
-                                <Button
-                                    variant="contained"
-                                    onClick={handleSetReplayTime}
-                                    disabled={actionLoading || !selectedDate}
-                                    sx={{ minWidth: 100 }}
-                                >
-                                    Set Time
-                                </Button>
+                    <Paper sx={{ p: 3 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <AutoGraphIcon color="primary" />
+                                <Typography variant="h6">
+                                    Market Scenarios
+                                </Typography>
                             </Box>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                                Current: {new Date(state.currentTime).toLocaleString('de-DE')}
-                            </Typography>
-                        </Paper>
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={scenarioState?.isEnabled ?? false}
+                                        onChange={handleScenarioToggle}
+                                        disabled={scenarioLoading}
+                                    />
+                                }
+                                label={scenarioState?.isEnabled ? 'Enabled' : 'Disabled'}
+                            />
+                        </Box>
 
-                        {/* Speed Control */}
-                        <Paper sx={{ p: 3 }}>
-                            <Typography variant="h6" gutterBottom>
-                                Replay Speed
-                            </Typography>
-                            <ButtonGroup variant="outlined" fullWidth disabled={actionLoading}>
-                                <Button
-                                    onClick={() => handleSpeedChange(1)}
-                                    variant={state.speed === 1 ? 'contained' : 'outlined'}
-                                >
-                                    1x
-                                </Button>
-                                <Button
-                                    onClick={() => handleSpeedChange(5)}
-                                    variant={state.speed === 5 ? 'contained' : 'outlined'}
-                                >
-                                    5x
-                                </Button>
-                                <Button
-                                    onClick={() => handleSpeedChange(10)}
-                                    variant={state.speed === 10 ? 'contained' : 'outlined'}
-                                >
-                                    10x
-                                </Button>
-                            </ButtonGroup>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                                Current speed: {state.speed}x
-                            </Typography>
-                        </Paper>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            Configure realistic market conditions with regimes and patterns
+                        </Typography>
 
-                        <Divider />
-
-                        {/* Playback Controls */}
-                        <Paper sx={{ p: 3 }}>
-                            <Typography variant="h6" gutterBottom>
-                                Playback Controls
-                            </Typography>
-                            <Box sx={{ display: 'flex', gap: 2 }}>
-                                {isRunning ? (
-                                    <Button
-                                        variant="contained"
-                                        color="warning"
-                                        startIcon={<PauseIcon />}
-                                        onClick={handlePause}
-                                        disabled={actionLoading}
-                                        fullWidth
+                        {scenarioState?.isEnabled && (
+                            <>
+                                {/* Preset Selection */}
+                                <FormControl fullWidth sx={{ mb: 2 }}>
+                                    <InputLabel>Scenario Preset</InputLabel>
+                                    <Select
+                                        value={selectedPreset}
+                                        label="Scenario Preset"
+                                        onChange={(e) => handlePresetChange(e.target.value)}
+                                        disabled={scenarioLoading}
                                     >
-                                        Pause
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        variant="contained"
-                                        color="success"
-                                        startIcon={<PlayArrowIcon />}
-                                        onClick={handleStart}
-                                        disabled={actionLoading}
-                                        fullWidth
-                                    >
-                                        Start
-                                    </Button>
+                                        {scenarioState.availablePresets.map((preset) => (
+                                            <MenuItem key={preset} value={preset}>
+                                                {preset}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+
+                                {/* Active Scenario Info */}
+                                {scenarioState.activeConfig && (
+                                    <Box sx={{ bgcolor: 'grey.900', borderRadius: 1, p: 2, mb: 2 }}>
+                                        <Typography variant="subtitle2" gutterBottom color="grey.100">
+                                            Active: {scenarioState.activeConfig.name}
+                                        </Typography>
+
+                                        {/* Regime Timeline */}
+                                        <Typography variant="caption" color="grey.400" display="block" sx={{ mb: 1 }}>
+                                            Regime Timeline:
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
+                                            {scenarioState.activeConfig.regimes?.map((regime, idx) => (
+                                                <Tooltip
+                                                    key={idx}
+                                                    title={`${regime.bars} bars`}
+                                                >
+                                                    <Chip
+                                                        size="small"
+                                                        label={getRegimeDisplayName(regime.type as MarketRegime)}
+                                                        sx={{
+                                                            bgcolor: getRegimeColor(regime.type as MarketRegime),
+                                                            color: 'white',
+                                                            fontSize: '0.7rem',
+                                                        }}
+                                                    />
+                                                </Tooltip>
+                                            )) ?? null}
+                                        </Box>
+
+                                        {/* Pattern Overlays */}
+                                        {(scenarioState.activeConfig.overlays?.length ?? 0) > 0 && (
+                                            <Typography variant="caption" color="grey.400" display="block">
+                                                Pattern Overlays: {scenarioState.activeConfig.overlays?.length ?? 0}
+                                            </Typography>
+                                        )}
+                                    </Box>
                                 )}
+
+                                {/* Reset Button */}
                                 <Button
                                     variant="outlined"
                                     startIcon={<RestartAltIcon />}
-                                    onClick={handleReset}
-                                    disabled={actionLoading}
-                                    fullWidth
+                                    onClick={handleScenarioReset}
+                                    disabled={scenarioLoading}
+                                    size="small"
                                 >
-                                    Reset
+                                    Reset to Default
                                 </Button>
-                            </Box>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                                Status: {isRunning ? 'Running' : 'Paused'}
-                            </Typography>
-                        </Paper>
-                    </>
+                            </>
+                        )}
+                    </Paper>
                 )}
 
                 {/* Current State Display */}
-                <Paper sx={{ p: 3, bgcolor: 'grey.50' }}>
-                    <Typography variant="h6" gutterBottom>
+                <Paper sx={{ p: 3, bgcolor: 'grey.900' }}>
+                    <Typography variant="h6" gutterBottom color="grey.100">
                         Current State
                     </Typography>
                     <Stack spacing={1}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <Typography variant="body2" color="text.secondary">Mode:</Typography>
-                            <Typography variant="body2" fontWeight="bold">{state.mode}</Typography>
+                            <Typography variant="body2" color="grey.400">Provider:</Typography>
+                            <Typography variant="body2" fontWeight="bold" color="grey.100">
+                                {isLive ? 'Yahoo Finance' : 'Mock (Simulation)'}
+                            </Typography>
                         </Box>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <Typography variant="body2" color="text.secondary">Current Time:</Typography>
-                            <Typography variant="body2" fontWeight="bold">
+                            <Typography variant="body2" color="grey.400">Current Time:</Typography>
+                            <Typography variant="body2" fontWeight="bold" color="grey.100">
                                 {new Date(state.currentTime).toLocaleString('de-DE')}
                             </Typography>
                         </Box>
-                        {!isLive && (
-                            <>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <Typography variant="body2" color="text.secondary">Start Time:</Typography>
-                                    <Typography variant="body2" fontWeight="bold">
-                                        {new Date(state.replayStartTime).toLocaleString('de-DE')}
-                                    </Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <Typography variant="body2" color="text.secondary">Speed:</Typography>
-                                    <Typography variant="body2" fontWeight="bold">{state.speed}x</Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <Typography variant="body2" color="text.secondary">Running:</Typography>
-                                    <Typography variant="body2" fontWeight="bold">
-                                        {state.isRunning ? 'Yes' : 'No'}
-                                    </Typography>
-                                </Box>
-                            </>
+                        {!isLive && scenarioState?.isEnabled && (
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography variant="body2" color="grey.400">Scenario:</Typography>
+                                <Typography variant="body2" fontWeight="bold" color="grey.100">
+                                    {scenarioState.activeConfig?.name ?? 'None'}
+                                </Typography>
+                            </Box>
                         )}
                     </Stack>
                 </Paper>

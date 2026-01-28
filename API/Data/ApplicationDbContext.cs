@@ -20,6 +20,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ReplayStateEntity> ReplayStates { get; set; }
     public DbSet<Account> Accounts { get; set; }
     public DbSet<RiskSettingsEntity> RiskSettings { get; set; }
+    public DbSet<ScenarioConfigEntity> ScenarioConfigs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -50,14 +51,14 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.PnL).HasPrecision(18, 2);
             entity.Property(e => e.PnLPercent).HasPrecision(18, 4);
             entity.Property(e => e.OpenedAt).IsRequired();
-            
+
             // Store Reasons as JSON string
             entity.Property(e => e.Reasons)
                 .HasConversion(
                     v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
                     v => System.Text.Json.JsonSerializer.Deserialize<List<string>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new List<string>()
                 );
-            
+
             entity.HasIndex(e => e.Symbol);
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.OpenedAt);
@@ -121,6 +122,17 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.MaxRiskPercent).HasPrecision(5, 2).IsRequired();
             entity.Property(e => e.MinRiskRewardRatio).HasPrecision(5, 2).IsRequired();
             entity.Property(e => e.MaxCapitalPercent).HasPrecision(5, 2).IsRequired();
+            entity.Property(e => e.UpdatedAt).IsRequired();
+        });
+
+        // Configure ScenarioConfig (Singleton)
+        modelBuilder.Entity<ScenarioConfigEntity>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedNever(); // Manually set to 1
+            entity.Property(e => e.ActivePreset).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.ConfigJson).IsRequired();
+            entity.Property(e => e.IsEnabled).IsRequired();
             entity.Property(e => e.UpdatedAt).IsRequired();
         });
 

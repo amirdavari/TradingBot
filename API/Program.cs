@@ -31,10 +31,6 @@ builder.Services.AddCors(options =>
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite("Data Source=aibroker.db"));
 
-// Register Yahoo Finance Provider with HttpClient
-builder.Services.AddHttpClient<YahooFinanceMarketDataProvider>();
-builder.Services.AddHttpClient<YahooNewsProvider>();
-
 // Register Mock News Provider for Replay mode
 builder.Services.AddSingleton<MockNewsProvider>();
 
@@ -42,8 +38,8 @@ builder.Services.AddSingleton<MockNewsProvider>();
 builder.Services.AddSingleton<IMarketTimeProvider, MarketTimeProvider>();
 
 // Register News Provider based on mode
-// In Replay mode, use ReplayMockNewsProvider (Yahoo doesn't provide historical news)
-// In Live mode, use YahooNewsProvider
+// In Replay mode, use ReplayMockNewsProvider (generates mock news)
+// In Live mode, use MockNewsProvider (no external API dependency)
 builder.Services.AddScoped<INewsProvider>(sp =>
 {
     var timeProvider = sp.GetRequiredService<IMarketTimeProvider>();
@@ -57,42 +53,39 @@ builder.Services.AddScoped<INewsProvider>(sp =>
     }
     else
     {
-        return sp.GetRequiredService<YahooNewsProvider>();
+        // Live mode: use MockNewsProvider directly
+        return sp.GetRequiredService<MockNewsProvider>();
     }
 });
 
-// Register Market Data Provider based on mode
-// In Replay mode, YahooReplayMarketDataProvider wraps YahooFinanceMarketDataProvider
+// Register Market Data Provider - switches between Yahoo (Live) and Mock (Replay)
+// Live mode: YahooFinanceMarketDataProvider (delayed market data)
+// Replay/Mock mode: MockRealtimeCandleProvider (generated scenario-based data)
+builder.Services.AddSingleton<MarketSimulationEngine>();
+builder.Services.AddSingleton<IScenarioService, ScenarioService>();
+builder.Services.AddHttpClient<YahooFinanceMarketDataProvider>();
 builder.Services.AddScoped<IMarketDataProvider>(sp =>
 {
     var timeProvider = sp.GetRequiredService<IMarketTimeProvider>();
     var mode = timeProvider.GetMode();
 
-    if (mode == API.Models.MarketMode.Replay)
+    if (mode == API.Models.MarketMode.Live)
     {
-        var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
-        var httpClient = httpClientFactory.CreateClient(nameof(YahooFinanceMarketDataProvider));
-        var yahooLogger = sp.GetRequiredService<ILogger<YahooFinanceMarketDataProvider>>();
-        var yahooProvider = new YahooFinanceMarketDataProvider(httpClient, yahooLogger, timeProvider);
-
-        var replayLogger = sp.GetRequiredService<ILogger<YahooReplayMarketDataProvider>>();
-        return new YahooReplayMarketDataProvider(yahooProvider, timeProvider, replayLogger);
+        // Live mode: use Yahoo Finance (delayed data)
+        return sp.GetRequiredService<YahooFinanceMarketDataProvider>();
     }
     else
     {
-        return sp.GetRequiredService<YahooFinanceMarketDataProvider>();
+        // Replay/Mock mode: use generated candle data with scenarios
+        var scenarioService = sp.GetRequiredService<IScenarioService>();
+        var simulationEngine = sp.GetRequiredService<MarketSimulationEngine>();
+        var logger = sp.GetRequiredService<ILogger<MockRealtimeCandleProvider>>();
+        return new MockRealtimeCandleProvider(timeProvider, scenarioService, simulationEngine, logger);
     }
 });
 
 builder.Services.AddSingleton<MarketTimeProvider>(sp =>
     (MarketTimeProvider)sp.GetRequiredService<IMarketTimeProvider>());
-
-// Register Replay Clock Service (Background Service)
-builder.Services.AddHostedService<ReplayClockService>();
-builder.Services.AddSingleton<ReplayClockService>(sp =>
-    sp.GetServices<IHostedService>()
-        .OfType<ReplayClockService>()
-        .First());
 
 // Register Business Services
 builder.Services.AddScoped<SignalService>();

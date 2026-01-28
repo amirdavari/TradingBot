@@ -70,4 +70,10 @@ public static class TradingHubMethods
     /// Payload: { symbols: string[] } - affected symbols, empty for all
     /// </summary>
     public const string ReceiveChartRefresh = "ReceiveChartRefresh";
+
+    /// <summary>
+    /// Sent when scenario configuration changes.
+    /// Payload: ScenarioStateDto
+    /// </summary>
+    public const string ReceiveScenarioChange = "ReceiveScenarioChange";
 }

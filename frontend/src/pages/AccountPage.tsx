@@ -138,7 +138,7 @@ export default function AccountPage() {
             {/* Main Account Cards */}
             <Grid container spacing={3} sx={{ mb: 3 }}>
                 {/* Balance Card */}
-                <Grid item xs={12} md={4}>
+                <Grid size={{ xs: 12, md: 4 }}>
                     <Card elevation={2}>
                         <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -156,7 +156,7 @@ export default function AccountPage() {
                 </Grid>
 
                 {/* Equity Card */}
-                <Grid item xs={12} md={4}>
+                <Grid size={{ xs: 12, md: 4 }}>
                     <Card elevation={2}>
                         <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -177,7 +177,7 @@ export default function AccountPage() {
                 </Grid>
 
                 {/* Available Cash Card */}
-                <Grid item xs={12} md={4}>
+                <Grid size={{ xs: 12, md: 4 }}>
                     <Card elevation={2}>
                         <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -203,7 +203,7 @@ export default function AccountPage() {
                 <Divider sx={{ mb: 2 }} />
 
                 <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                         <Typography variant="body2" color="text.secondary">
                             Allocated Capital
                         </Typography>
@@ -212,7 +212,7 @@ export default function AccountPage() {
                         </Typography>
                     </Grid>
 
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                         <Typography variant="body2" color="text.secondary">
                             Unrealized P&L
                         </Typography>
@@ -224,7 +224,7 @@ export default function AccountPage() {
                         </Typography>
                     </Grid>
 
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                         <Typography variant="body2" color="text.secondary">
                             Total P&L
                         </Typography>
@@ -236,7 +236,7 @@ export default function AccountPage() {
                         </Typography>
                     </Grid>
 
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                         <Typography variant="body2" color="text.secondary">
                             Last Updated
                         </Typography>

@@ -34,11 +34,6 @@ export const API_CONFIG = {
         },
         replay: {
             state: '/api/replay/state',
-            start: '/api/replay/start',
-            pause: '/api/replay/pause',
-            reset: '/api/replay/reset',
-            speed: '/api/replay/speed',
-            time: '/api/replay/time',
             mode: '/api/replay/mode',
         },
     },
@@ -57,7 +52,6 @@ export async function fetchWithConfig<T>(
     options?: RequestInit
 ): Promise<T> {
     const url = `${API_CONFIG.baseURL}${endpoint}`;
-    console.log('[API] Fetching:', url);
 
     try {
         const response = await fetch(url, {
@@ -67,7 +61,6 @@ export async function fetchWithConfig<T>(
                 ...options?.headers,
             },
         });
-        console.log('[API] Response received:', response.status, url);
         return handleResponse<T>(response);
     } catch (error) {
         console.error('[API] Fetch error:', url, error);

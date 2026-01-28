@@ -84,7 +84,7 @@ export default function StatisticsOverview({ statistics }: StatisticsOverviewPro
             </Typography>
             <Grid container spacing={2}>
                 {stats.map((stat) => (
-                    <Grid item xs={12} sm={6} md={3} key={stat.label}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }} key={stat.label}>
                         <Card>
                             <CardContent>
                                 <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
@@ -111,7 +111,7 @@ export default function StatisticsOverview({ statistics }: StatisticsOverviewPro
                     </Typography>
                     <Grid container spacing={2}>
                         {statistics.bestTrade && (
-                            <Grid item xs={12} md={6}>
+                            <Grid size={{ xs: 12, md: 6 }}>
                                 <Card sx={{ borderLeft: '4px solid', borderLeftColor: 'success.main' }}>
                                     <CardContent>
                                         <Typography variant="subtitle2" color="success.main" gutterBottom>
@@ -134,7 +134,7 @@ export default function StatisticsOverview({ statistics }: StatisticsOverviewPro
                             </Grid>
                         )}
                         {statistics.worstTrade && (
-                            <Grid item xs={12} md={6}>
+                            <Grid size={{ xs: 12, md: 6 }}>
                                 <Card sx={{ borderLeft: '4px solid', borderLeftColor: 'error.main' }}>
                                     <CardContent>
                                         <Typography variant="subtitle2" color="error.main" gutterBottom>
