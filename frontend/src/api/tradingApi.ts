@@ -171,3 +171,9 @@ export async function getUnrealizedPnL(tradeId: number): Promise<number> {
 export async function getTradeStatistics(): Promise<TradeStatistics> {
     return fetchWithConfig<TradeStatistics>('/api/papertrades/statistics');
 }
+
+export async function updateSelectedTimeframe(timeframe: number): Promise<void> {
+    await fetchWithConfig<{ timeframe: number }>(`/api/risk/timeframe/${timeframe}`, {
+        method: 'PUT'
+    });
+}

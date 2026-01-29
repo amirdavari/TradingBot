@@ -79,23 +79,23 @@ export default function StatisticsOverview({ statistics }: StatisticsOverviewPro
 
     return (
         <Box>
-            <Typography variant="h6" sx={{ mb: 2 }}>
+            <Typography variant="h6" sx={{ mb: 1 }}>
                 Trading Statistics
             </Typography>
-            <Grid container spacing={2}>
+            <Grid container spacing={1}>
                 {stats.map((stat) => (
-                    <Grid size={{ xs: 12, sm: 6, md: 3 }} key={stat.label}>
+                    <Grid size={{ xs: 6, sm: 4, md: 3, lg: 1.5 }} key={stat.label}>
                         <Card>
-                            <CardContent>
-                                <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
-                                    <Typography variant="body2" color="text.secondary">
+                            <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                                <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
+                                    <Typography variant="caption" color="text.secondary">
                                         {stat.label}
                                     </Typography>
-                                    <Box sx={{ color: stat.color }}>
+                                    <Box sx={{ color: stat.color, '& svg': { fontSize: 18 } }}>
                                         {stat.icon}
                                     </Box>
                                 </Box>
-                                <Typography variant="h6" sx={{ color: stat.color }}>
+                                <Typography variant="body1" fontWeight="bold" sx={{ color: stat.color }}>
                                     {stat.value}
                                 </Typography>
                             </CardContent>
@@ -105,16 +105,16 @@ export default function StatisticsOverview({ statistics }: StatisticsOverviewPro
             </Grid>
 
             {(statistics.bestTrade || statistics.worstTrade) && (
-                <Box sx={{ mt: 3 }}>
-                    <Typography variant="h6" sx={{ mb: 2 }}>
+                <Box sx={{ mt: 2 }}>
+                    <Typography variant="subtitle1" sx={{ mb: 1 }}>
                         Notable Trades
                     </Typography>
-                    <Grid container spacing={2}>
+                    <Grid container spacing={1}>
                         {statistics.bestTrade && (
                             <Grid size={{ xs: 12, md: 6 }}>
                                 <Card sx={{ borderLeft: '4px solid', borderLeftColor: 'success.main' }}>
-                                    <CardContent>
-                                        <Typography variant="subtitle2" color="success.main" gutterBottom>
+                                    <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                                        <Typography variant="subtitle2" color="success.main">
                                             Best Trade
                                         </Typography>
                                         <Typography variant="body2">
@@ -136,8 +136,8 @@ export default function StatisticsOverview({ statistics }: StatisticsOverviewPro
                         {statistics.worstTrade && (
                             <Grid size={{ xs: 12, md: 6 }}>
                                 <Card sx={{ borderLeft: '4px solid', borderLeftColor: 'error.main' }}>
-                                    <CardContent>
-                                        <Typography variant="subtitle2" color="error.main" gutterBottom>
+                                    <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                                        <Typography variant="subtitle2" color="error.main">
                                             Worst Trade
                                         </Typography>
                                         <Typography variant="body2">

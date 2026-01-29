@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
@@ -68,13 +68,14 @@ const COMPANY_NAMES: Record<string, string> = {
 interface WatchlistPanelProps {
     selectedSymbol: string;
     onSymbolChange: (symbol: string) => void;
+    timeframe: 1 | 5 | 15;
 }
 
-export default function WatchlistPanel({ selectedSymbol, onSymbolChange }: WatchlistPanelProps) {
+export default function WatchlistPanel({ selectedSymbol, onSymbolChange, timeframe }: WatchlistPanelProps) {
     const { watchlist, loading, addSymbol, deleteSymbol } = useWatchlist();
     const symbols = watchlist.map((item) => item.symbol);
-    // Scanner results updated via SignalR (no polling needed)
-    const { scanResults, loading: scanLoading, reload: reloadScanner, setScanResults } = useScanner(symbols, symbols.length > 0);
+    // Scanner results - initial load via API, updates via SignalR (both use user-selected timeframe)
+    const { scanResults, loading: scanLoading, reload: reloadScanner, setScanResults } = useScanner(symbols, symbols.length > 0, timeframe);
     const { trades } = useOpenTrades(); // Uses SignalR for real-time updates
     const [deletingSymbol, setDeletingSymbol] = useState<string | null>(null);
     const [newSymbol, setNewSymbol] = useState('');
@@ -97,22 +98,22 @@ export default function WatchlistPanel({ selectedSymbol, onSymbolChange }: Watch
     }, [symbols]);
 
     // Listen for SignalR scanner updates - merge with existing results
-    // Only update symbols that are in the watchlist, keep others unchanged
+    // Backend now uses user-selected timeframe stored in database
     useSignalRScanResults((results) => {
         console.log('[WatchlistPanel] Received scanner results via SignalR:', results.length);
 
         // Create a map of new results for quick lookup
         const newResultsMap = new Map(results.map(r => [r.symbol, r]));
-        const currentSymbols = symbolsRef.current; // Use ref to get current symbols
+        const currentSymbols = symbolsRef.current;
 
         // Merge: update existing symbols if we have new data, keep others
         setScanResults(prev => {
             const merged = prev.map(existing => {
                 const updated = newResultsMap.get(existing.symbol);
-                return updated || existing; // Use new data if available, otherwise keep existing
+                return updated || existing;
             });
 
-            // Also add any new symbols from SignalR that are in our watchlist but weren't in prev
+            // Add any new symbols from SignalR that are in our watchlist but weren't in prev
             const existingSymbols = new Set(prev.map(r => r.symbol));
             const watchlistSymbolSet = new Set(currentSymbols);
 

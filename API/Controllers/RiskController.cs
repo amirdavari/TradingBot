@@ -153,4 +153,29 @@ public class RiskController : ControllerBase
             return StatusCode(500, "Failed to update auto-trade settings");
         }
     }
+
+    /// <summary>
+    /// Updates the selected chart timeframe (used by background scanner).
+    /// </summary>
+    /// <param name="timeframe">Timeframe in minutes (1, 5, or 15)</param>
+    [HttpPut("timeframe/{timeframe:int}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult> UpdateTimeframe(int timeframe)
+    {
+        if (timeframe is not (1 or 5 or 15))
+            return BadRequest("Timeframe must be 1, 5, or 15 minutes");
+
+        try
+        {
+            await _riskService.UpdateTimeframeAsync(timeframe);
+            _logger.LogInformation("Timeframe updated to {Timeframe} minutes", timeframe);
+            return Ok(new { timeframe });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating timeframe");
+            return StatusCode(500, "Failed to update timeframe");
+        }
+    }
 }

@@ -6,7 +6,7 @@ import WatchlistPanel from '../components/WatchlistPanel';
 import ChartPanel from '../components/ChartPanel';
 import TradeSetupPanel from '../components/TradeSetupPanel';
 import { OpenTradesPanel } from '../components/OpenTradesPanel';
-import { getCandles, getSignal, getNews, getAccount, createTrade } from '../api/tradingApi';
+import { getCandles, getSignal, getNews, getAccount, createTrade, updateSelectedTimeframe } from '../api/tradingApi';
 import type { Candle, TradeSignal, NewsItem, Account, RiskCalculation, ScanResult } from '../models';
 import { useSignalRChartRefresh, useSignalRAccountUpdate, useSignalRScanResults } from '../hooks/useSignalR';
 
@@ -134,10 +134,9 @@ export default function Dashboard() {
     }, [timeframe]);
 
     // Update signal from SignalR scanner results to keep TradeSetup in sync with Watchlist
-    // NOTE: Scanner always uses timeframe=5, so only sync when dashboard also uses timeframe=5
+    // Scanner now uses the same timeframe as the dashboard, so always sync
     const handleScanResults = useCallback((results: ScanResult[]) => {
         const currentSymbol = selectedSymbolRef.current;
-        const currentTimeframe = timeframeRef.current;
         const scanResult = results.find(r => r.symbol === currentSymbol);
 
         if (scanResult) {
@@ -146,22 +145,17 @@ export default function Dashboard() {
                 setCurrentPrice(scanResult.currentPrice);
             }
 
-            // Only sync trend/confidence when timeframe matches scanner (5min)
-            // This prevents inconsistency when user selects 1m or 15m timeframe
-            if (currentTimeframe === 5) {
-                console.log('[Dashboard] Syncing signal from scanner results for', currentSymbol, '(timeframe=5)');
-                setSignal(prev => {
-                    if (!prev || prev.symbol !== currentSymbol) return prev;
-                    return {
-                        ...prev,
-                        direction: scanResult.trend,
-                        confidence: scanResult.confidence,
-                        reasons: scanResult.reasons
-                    };
-                });
-            } else {
-                console.log('[Dashboard] Skipping signal sync - timeframe mismatch (dashboard:', currentTimeframe, ', scanner: 5)');
-            }
+            // Sync trend/confidence from scanner (scanner now uses same timeframe as dashboard)
+            console.log('[Dashboard] Syncing signal from scanner results for', currentSymbol);
+            setSignal(prev => {
+                if (!prev || prev.symbol !== currentSymbol) return prev;
+                return {
+                    ...prev,
+                    direction: scanResult.trend,
+                    confidence: scanResult.confidence,
+                    reasons: scanResult.reasons
+                };
+            });
         }
     }, []);
 
@@ -328,6 +322,7 @@ export default function Dashboard() {
                     <WatchlistPanel
                         selectedSymbol={selectedSymbol}
                         onSymbolChange={handleSymbolChange}
+                        timeframe={timeframe}
                     />
                 </Grid>
 
@@ -343,7 +338,11 @@ export default function Dashboard() {
                         symbol={selectedSymbol}
                         timeframe={timeframe}
                         onSymbolChange={handleSymbolChange}
-                        onTimeframeChange={(tf) => setTimeframe(tf)}
+                        onTimeframeChange={(tf) => {
+                            setTimeframe(tf);
+                            // Notify backend so SignalR scanner uses correct timeframe
+                            updateSelectedTimeframe(tf).catch(console.error);
+                        }}
                     />
                 </Grid>
 

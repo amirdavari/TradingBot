@@ -7,13 +7,14 @@ import { scanStocks } from '../api/tradingApi';
  * Initial scan happens on mount. Updates via SignalR are handled externally via setScanResults.
  * Gracefully handles errors - dashboard will work without scanner data.
  */
-export function useScanner(symbols: string[], enabled: boolean = true) {
+export function useScanner(symbols: string[], enabled: boolean = true, timeframe: number = 5) {
     const [scanResults, setScanResults] = useState<ScanResult[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // Use ref to track if we've scanned before and avoid infinite loops
     const lastSymbolsKey = useRef<string>('');
+    const lastTimeframe = useRef<number>(timeframe);
     const isScanning = useRef<boolean>(false);
     const hasInitialScan = useRef<boolean>(false);
 
@@ -32,10 +33,11 @@ export function useScanner(symbols: string[], enabled: boolean = true) {
         }
 
         const symbolsKey = symbols.join(',');
+        const timeframeChanged = lastTimeframe.current !== timeframe;
 
-        // Skip if symbols haven't changed (prevents infinite loops)
-        if (symbolsKey === lastSymbolsKey.current && hasInitialScan.current) {
-            console.log('[useScanner] Skipping scan - symbols unchanged');
+        // Skip if symbols and timeframe haven't changed (prevents infinite loops)
+        if (symbolsKey === lastSymbolsKey.current && !timeframeChanged && hasInitialScan.current) {
+            console.log('[useScanner] Skipping scan - symbols and timeframe unchanged');
             return;
         }
 
@@ -47,6 +49,7 @@ export function useScanner(symbols: string[], enabled: boolean = true) {
             }
 
             lastSymbolsKey.current = symbolsKey;
+            lastTimeframe.current = timeframe;
             hasInitialScan.current = true;
             isScanning.current = true;
             setLoading(true);
@@ -58,9 +61,9 @@ export function useScanner(symbols: string[], enabled: boolean = true) {
             });
 
             try {
-                console.log('[useScanner] Scanning symbols:', symbols.length, 'symbols');
+                console.log('[useScanner] Scanning symbols:', symbols.length, 'symbols, timeframe:', timeframe);
                 const results = await Promise.race([
-                    scanStocks(symbols, 1),
+                    scanStocks(symbols, timeframe),
                     timeoutPromise
                 ]) as ScanResult[];
                 console.log('[useScanner] Scan results:', results.length);
@@ -78,7 +81,7 @@ export function useScanner(symbols: string[], enabled: boolean = true) {
         };
 
         scan();
-    }, [symbols, enabled]);
+    }, [symbols, enabled, timeframe]);
 
     const reload = useCallback(async () => {
         console.log('[useScanner] Manual reload requested - enabled:', enabled, 'symbols:', symbols.length);
@@ -104,9 +107,9 @@ export function useScanner(symbols: string[], enabled: boolean = true) {
         });
 
         try {
-            console.log('[useScanner] Manual reload: Scanning', symbols.length, 'symbols');
+            console.log('[useScanner] Manual reload: Scanning', symbols.length, 'symbols, timeframe:', timeframe);
             const results = await Promise.race([
-                scanStocks(symbols, 1),
+                scanStocks(symbols, timeframe),
                 timeoutPromise
             ]) as ScanResult[];
             console.log('[useScanner] Manual reload: Scan results:', results.length);
@@ -121,7 +124,7 @@ export function useScanner(symbols: string[], enabled: boolean = true) {
             setLoading(false);
             isScanning.current = false;
         }
-    }, [symbols, enabled]);
+    }, [symbols, enabled, timeframe]);
 
     return {
         scanResults,

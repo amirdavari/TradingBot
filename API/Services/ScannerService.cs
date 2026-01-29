@@ -142,8 +142,8 @@ public class ScannerService
             // Check for news
             var hasNews = await CheckForNewsAsync(symbol);
 
-            // Get signal to extract confidence and trend
-            var signal = await _signalService.GenerateSignalAsync(symbol, 5);
+            // Get signal to extract confidence and trend - use same timeframe as scanner
+            var signal = await _signalService.GenerateSignalAsync(symbol, timeframe);
 
             // Calculate score
             var score = CalculateScore(volumeRatio, (double)volatility, (double)Math.Abs(distanceToVWAP), hasNews);

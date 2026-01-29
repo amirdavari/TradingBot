@@ -39,7 +39,14 @@ public class LiveChartRefreshService : BackgroundService
 
             if (watchlistSymbols.Length == 0) return;
 
-            var results = await scannerService.ScanStocksAsync(watchlistSymbols, timeframe: 5);
+            // Get user-selected timeframe from settings (default: 5)
+            var settings = await dbContext.RiskSettings.FirstOrDefaultAsync(stoppingToken);
+            var timeframe = settings?.SelectedTimeframe ?? 5;
+            
+            // Validate timeframe (must be 1, 5, or 15)
+            if (timeframe is not (1 or 5 or 15)) timeframe = 5;
+
+            var results = await scannerService.ScanStocksAsync(watchlistSymbols, timeframe);
 
             await _hubContext.Clients.All.SendAsync(
                 TradingHubMethods.ReceiveScanResults,

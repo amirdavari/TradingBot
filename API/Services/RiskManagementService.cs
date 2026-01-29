@@ -297,6 +297,17 @@ public class RiskManagementService
 
         return newSettings;
     }
+
+    /// <summary>
+    /// Updates the selected chart timeframe for background scanner.
+    /// </summary>
+    public async Task UpdateTimeframeAsync(int timeframe)
+    {
+        var settings = await GetOrCreateRiskSettingsAsync();
+        settings.SelectedTimeframe = timeframe;
+        settings.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+    }
 }
 
 /// <summary>

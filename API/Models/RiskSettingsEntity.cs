@@ -49,5 +49,13 @@ public class RiskSettingsEntity
     /// </summary>
     public int AutoTradeMaxConcurrent { get; set; } = 3;
     
+    // === Dashboard Settings ===
+    
+    /// <summary>
+    /// Selected chart timeframe in minutes (1, 5, or 15).
+    /// Used by background services for scanner updates.
+    /// </summary>
+    public int SelectedTimeframe { get; set; } = 5;
+    
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
