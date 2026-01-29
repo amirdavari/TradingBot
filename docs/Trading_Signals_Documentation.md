@@ -322,7 +322,236 @@ Der Scanner-Score (0-100) basiert auf:
 
 ---
 
-## 8. Support & Weitere Informationen
+## 8. Mock Data Providers (Entwicklungs- & Testmodus)
+
+Die Anwendung verwendet verschiedene **Mock Data Providers** für lokale Entwicklung und Tests, wenn kein Zugriff auf Yahoo Finance besteht.
+
+### 8.1 MockMarketDataProvider
+
+Generiert synthetische Kursdaten für Tests.
+
+**Konfiguration & Verhalten:**
+
+| Parameter | Wert | Beschreibung |
+|-----------|------|--------------|
+| **Base Volatility** | 2% | Standard-Volatilität für Preisbewegungen |
+| **Price Drift** | ±$1 | Zufällige Preisänderung zwischen Candles |
+
+**Symbol-spezifische Basispreise:**
+
+| Symbol | Basis-Preis | Beschreibung |
+|--------|-------------|--------------|
+| `AAPL` | $180.00 | Apple Inc. |
+| `MSFT` | $370.00 | Microsoft Corp. |
+| `TSLA` | $250.00 | Tesla Inc. |
+| `GOOGL` | $140.00 | Alphabet Inc. |
+| `AMZN` | $155.00 | Amazon.com Inc. |
+| `NVDA` | $480.00 | NVIDIA Corp. |
+| `META` | $340.00 | Meta Platforms |
+| `AMD` | $140.00 | Advanced Micro Devices |
+| `NFLX` | $480.00 | Netflix Inc. |
+| `SPY` | $470.00 | S&P 500 ETF |
+| *Andere* | $100.00 | Standard für unbekannte Symbole |
+
+**Candle-Generierung nach Period:**
+
+| Period | Candles berechnet | Logik |
+|--------|-------------------|-------|
+| `1d` | 390 / timeframe | ~6.5 Stunden Handelstag |
+| `5d` | 1950 / timeframe | 5 Handelstage |
+| `1mo` | 8190 / timeframe | ~21 Handelstage |
+| *Default* | 100 | Fallback |
+
+**Volume-Generierung nach Timeframe:**
+
+| Timeframe | Basis-Volumen | Beschreibung |
+|-----------|---------------|--------------|
+| 1 Minute | 50,000 | Niedriges Volumen für kurze Intervalle |
+| 5 Minuten | 200,000 | Standard-Volumen |
+| 15 Minuten | 500,000 | Höheres Volumen |
+| *Default* | 100,000 | Fallback |
+
+**OHLC-Berechnung:**
+```
+Open = basePrice
+Close = basePrice + (random(-0.5 bis +0.5) × priceMove)
+High = max(Open, Close) + (random × priceMove)
+Low = min(Open, Close) - (random × priceMove)
+Volume = baseVolume × (0.5 + random)
+```
+
+---
+
+### 8.2 MockNewsProvider
+
+Generiert synthetische Nachrichten für Tests und Replay-Modus.
+
+**News-Templates (10 Stück):**
+
+| # | Template | Sentiment |
+|---|----------|-----------|
+| 1 | "{Symbol} Reports Strong Q4 Earnings" | **positive** |
+| 2 | "{Symbol} Announces New Product Launch" | **positive** |
+| 3 | "{Symbol} Shares Rise on Market Optimism" | **positive** |
+| 4 | "Analysts Upgrade {Symbol} Price Target" | **positive** |
+| 5 | "{Symbol} CEO Discusses Growth Strategy" | **neutral** |
+| 6 | "{Symbol} Trading Volume Increases" | **neutral** |
+| 7 | "Market Watch: {Symbol} in Focus" | **neutral** |
+| 8 | "{Symbol} Faces Regulatory Scrutiny" | **negative** |
+| 9 | "{Symbol} Reports Supply Chain Issues" | **negative** |
+| 10 | "Concerns Grow Over {Symbol} Market Position" | **negative** |
+
+**Sentiment-Verteilung:**
+- **4 Positive** (40%)
+- **3 Neutral** (30%)
+- **3 Negative** (30%)
+
+**Zeitliche Verteilung:**
+- Start: 7 Tage vor aktuellem Zeitpunkt
+- Intervall: Alle 12 Stunden eine News
+- Sortierung: Neueste zuerst
+
+**Auswirkung auf Confidence Score:**
+
+Die News-Sentiment-Analyse berechnet einen Score von -1 bis +1:
+
+```
+sentimentScore = (positiveCount - negativeCount) / totalNewsCount
+confidenceImpact = sentimentScore × 15 Punkte
+```
+
+| Sentiment-Score | Confidence Änderung |
+|-----------------|---------------------|
+| +1.0 (sehr positiv) | +15 Punkte |
+| +0.5 (positiv) | +7-8 Punkte |
+| 0 (neutral) | 0 Punkte |
+| -0.5 (negativ) | -7-8 Punkte |
+| -1.0 (sehr negativ) | -15 Punkte |
+
+---
+
+### 8.3 Wann werden Mock Provider verwendet?
+
+Die Provider-Auswahl erfolgt in `Program.cs` basierend auf Umgebungsvariablen und Modus:
+
+| Szenario | Market Data Provider | News Provider |
+|----------|---------------------|---------------|
+| **Live Mode + Yahoo** | `YahooFinanceMarketDataProvider` | `YahooNewsProvider` |
+| **Live Mode + Mock** | `MockMarketDataProvider` | `MockNewsProvider` |
+| **Replay Mode** | `YahooReplayMarketDataProvider` | `YahooReplayNewsProvider` oder `ReplayMockNewsProvider` |
+| **Tests** | `MockMarketDataProvider` | `MockNewsProvider` |
+
+**Umstellung auf Mock:**
+- Setze Umgebungsvariable `USE_MOCK_DATA=true`
+- Oder ändere Provider-Registrierung in `Program.cs`
+
+---
+
+## 9. Detaillierte Berechnungslogik
+
+### 9.1 VWAP (Volume Weighted Average Price)
+
+**Formel:**
+```
+VWAP = Σ(Typical Price × Volume) / Σ(Volume)
+
+wobei: Typical Price = (High + Low + Close) / 3
+```
+
+**Interpretation:**
+- Preis > VWAP → Bullish (Käufer dominieren)
+- Preis < VWAP → Bearish (Verkäufer dominieren)
+- Wird für alle Candles im Zeitraum berechnet
+
+### 9.2 ATR (Average True Range)
+
+**Berechnung der True Range (TR):**
+```
+TR = max(
+    High - Low,
+    |High - Previous Close|,
+    |Low - Previous Close|
+)
+```
+
+**ATR (14 Perioden):**
+```
+ATR = Durchschnitt der letzten 14 TR-Werte
+```
+
+**Verwendung für Levels:**
+```
+LONG:
+  Stop Loss = Entry - (ATR × 1.5)
+  Take Profit = Entry + (ATR × 2.5)
+
+SHORT:
+  Stop Loss = Entry + (ATR × 1.5)
+  Take Profit = Entry - (ATR × 2.5)
+```
+
+### 9.3 Vollständige Confidence-Berechnung
+
+```
+Basis-Score: 50 Punkte
+
++ Trend-Bestätigung (Preis auf richtiger Seite von VWAP): +20 Punkte
+
++ Volumen-Bonus:
+  - Volume Ratio > 1.5: +15 Punkte
+  - Volume Ratio > 1.2: +10 Punkte
+  - Volume Ratio ≤ 1.2: +0 Punkte
+
++ Volatilitäts-Anpassung:
+  - Volatility < 1.5%: +10 Punkte (guter Entry)
+  - Volatility > 3.0%: -10 Punkte (zu riskant)
+
++ News-Sentiment: -15 bis +15 Punkte
+
+- Risk/Reward-Abzug:
+  - R/R < 1.5: -20 Punkte
+
+= Finaler Confidence Score (geclampt auf 0-100)
+```
+
+### 9.4 Scanner Score Berechnung (100 Punkte max)
+
+**1. Volumen-Score (max. 35 Punkte):**
+| Volume Ratio | Punkte |
+|--------------|--------|
+| > 2.0x | 35 |
+| > 1.5x | 30 |
+| > 1.2x | 25 |
+| > 0.8x | 15 |
+| ≤ 0.8x | 5 |
+
+**2. Volatilitäts-Score (max. 30 Punkte):**
+| Volatilität | Punkte | Bewertung |
+|-------------|--------|-----------|
+| 1.0% - 3.0% | 30 | Ideal |
+| 0.5% - 1.0% | 25 | Gut |
+| 0.3% - 5.0% | 20 | Akzeptabel |
+| > 0.1% | 10 | Niedrig |
+| ≤ 0.1% | 5 | Sehr niedrig |
+
+**3. VWAP-Distanz-Score (max. 25 Punkte):**
+| Distanz zum VWAP | Punkte |
+|------------------|--------|
+| ≤ 1.0% | 25 |
+| ≤ 2.0% | 20 |
+| ≤ 3.0% | 15 |
+| ≤ 5.0% | 10 |
+| > 5.0% | 5 |
+
+**4. News-Bonus (max. 10 Punkte):**
+| Hat News? | Punkte |
+|-----------|--------|
+| Ja | 10 |
+| Nein | 0 |
+
+---
+
+## 10. Support & Weitere Informationen
 
 Für weitere technische Details siehe:
 - [Backend Architektur](Backend_architektur.md)
