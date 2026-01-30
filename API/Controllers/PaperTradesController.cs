@@ -130,11 +130,11 @@ public class PaperTradesController : ControllerBase
     }
 
     /// <summary>
-    /// Gets trade history (closed trades).
+    /// Gets trade history (closed trades from TradeHistory table).
     /// </summary>
     [HttpGet("history")]
-    [ProducesResponseType(typeof(List<PaperTrade>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<List<PaperTrade>>> GetTradeHistory(
+    [ProducesResponseType(typeof(List<TradeHistory>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<TradeHistory>>> GetTradeHistory(
         [FromQuery] int limit = 50)
     {
         try

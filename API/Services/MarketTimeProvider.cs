@@ -2,69 +2,52 @@ namespace API.Services;
 
 /// <summary>
 /// Manages market mode state (Live vs Mock).
+/// Simplified after removal of time-simulation replay feature.
 /// </summary>
 public class MarketTimeProvider : IMarketTimeProvider
 {
-    private readonly Models.ReplayState _replayState;
+    private Models.MarketMode _mode;
     private readonly IServiceProvider _serviceProvider;
     private readonly object _syncRoot = new();
 
     public MarketTimeProvider(IServiceProvider serviceProvider)
     {
         _serviceProvider = serviceProvider;
-        _replayState = LoadStateFromDatabase() ?? new Models.ReplayState
-        {
-            Mode = Models.MarketMode.Live,
-            CurrentTime = DateTime.UtcNow,
-            ReplayStartTime = DateTime.UtcNow,
-            Speed = 1.0,
-            IsRunning = false
-        };
+        _mode = LoadModeFromDatabase();
     }
 
-    private Models.ReplayState? LoadStateFromDatabase()
+    private Models.MarketMode LoadModeFromDatabase()
     {
         try
         {
             using var scope = _serviceProvider.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<Data.ApplicationDbContext>();
-            var entity = db.ReplayStates.FirstOrDefault();
+            var entity = db.MarketModes.FirstOrDefault();
             
             if (entity != null)
             {
-                return new Models.ReplayState
-                {
-                    Mode = entity.Mode,
-                    CurrentTime = DateTime.UtcNow,
-                    ReplayStartTime = entity.ReplayStartTime,
-                    Speed = entity.Speed,
-                    IsRunning = false
-                };
+                return entity.Mode;
             }
         }
-        catch { /* Ignore - use defaults */ }
-        return null;
+        catch { /* Ignore - use default */ }
+        return Models.MarketMode.Live;
     }
 
-    private void SaveStateToDatabase()
+    private void SaveModeToDatabase()
     {
         try
         {
             using var scope = _serviceProvider.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<Data.ApplicationDbContext>();
             
-            var entity = db.ReplayStates.FirstOrDefault();
+            var entity = db.MarketModes.FirstOrDefault();
             if (entity == null)
             {
-                entity = new Models.ReplayStateEntity { Id = 1 };
-                db.ReplayStates.Add(entity);
+                entity = new Models.MarketModeEntity { Id = 1 };
+                db.MarketModes.Add(entity);
             }
             
-            entity.Mode = _replayState.Mode;
-            entity.ReplayStartTime = _replayState.ReplayStartTime;
-            entity.Speed = _replayState.Speed;
-            entity.IsRunning = _replayState.IsRunning;
-            
+            entity.Mode = _mode;
             db.SaveChanges();
         }
         catch { /* Ignore persistence errors */ }
@@ -72,31 +55,24 @@ public class MarketTimeProvider : IMarketTimeProvider
 
     public DateTime GetCurrentTime()
     {
-        lock (_syncRoot)
-        {
-            return DateTime.UtcNow; // Always use real time
-        }
+        return DateTime.UtcNow;
     }
 
     public Models.MarketMode GetMode()
     {
         lock (_syncRoot)
         {
-            return _replayState.Mode;
+            return _mode;
         }
     }
 
-    public Models.ReplayState GetReplayState()
+    public Models.MarketModeState GetMarketState()
     {
         lock (_syncRoot)
         {
-            return new Models.ReplayState
+            return new Models.MarketModeState
             {
-                Mode = _replayState.Mode,
-                CurrentTime = DateTime.UtcNow,
-                ReplayStartTime = _replayState.ReplayStartTime,
-                Speed = _replayState.Speed,
-                IsRunning = _replayState.IsRunning
+                Mode = _mode
             };
         }
     }
@@ -105,17 +81,8 @@ public class MarketTimeProvider : IMarketTimeProvider
     {
         lock (_syncRoot)
         {
-            _replayState.Mode = mode;
-            SaveStateToDatabase();
-        }
-    }
-
-    public void UpdateReplayState(Action<Models.ReplayState> updateAction)
-    {
-        lock (_syncRoot)
-        {
-            updateAction(_replayState);
-            SaveStateToDatabase();
+            _mode = mode;
+            SaveModeToDatabase();
         }
     }
 }

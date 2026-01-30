@@ -36,10 +36,10 @@ public class TradingHub : Hub
 public static class TradingHubMethods
 {
     /// <summary>
-    /// Sent when replay state changes (time advance, start/pause/reset, mode change).
-    /// Payload: ReplayStateResponse
+    /// Sent when market mode changes (Live/Mock).
+    /// Payload: MarketModeResponse
     /// </summary>
-    public const string ReceiveReplayState = "ReceiveReplayState";
+    public const string ReceiveReplayState = "ReceiveReplayState"; // Keep name for backwards compatibility
 
     /// <summary>
     /// Sent when a trade is opened or updated.

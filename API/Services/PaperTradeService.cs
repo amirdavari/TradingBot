@@ -116,24 +116,26 @@ public class PaperTradeService
         // Calculate PnL
         var pnl = CalculatePnL(trade, exitPrice);
 
-        // Update trade
+        // Update trade with final values before creating history
         trade.Status = reason;
         trade.ExitPrice = exitPrice;
         trade.PnL = pnl.Amount;
         trade.PnLPercent = pnl.Percent;
         trade.ClosedAt = _timeProvider.GetCurrentTime();
 
-        await _context.SaveChangesAsync();
-
         // Release capital and update account balance
         await _accountService.ReleaseCapitalAsync(trade.InvestAmount, pnl.Amount);
 
-        // Create trade history entry
+        // Create trade history entry (copies all data from trade)
         await CreateTradeHistoryAsync(trade);
 
+        // Delete the closed trade from PaperTrades table
+        _context.PaperTrades.Remove(trade);
+        await _context.SaveChangesAsync();
+
         _logger.LogInformation(
-            "Closed trade #{Id} for {Symbol}: Exit={Exit}, PnL={PnL} ({Percent}%), Reason={Reason}",
-            trade.Id, trade.Symbol, exitPrice, pnl.Amount, pnl.Percent, reason);
+            "Closed and archived trade #{Id} for {Symbol}: Exit={Exit}, PnL={PnL} ({Percent}%), Reason={Reason}",
+            tradeId, trade.Symbol, exitPrice, pnl.Amount, pnl.Percent, reason);
 
         return (true, $"Trade closed: PnL {pnl.Amount:F2} ({pnl.Percent:F2}%)");
     }
@@ -225,10 +227,9 @@ public class PaperTradeService
     /// <summary>
     /// Gets trade history (closed trades).
     /// </summary>
-    public async Task<List<PaperTrade>> GetTradeHistoryAsync(int limit = 50)
+    public async Task<List<TradeHistory>> GetTradeHistoryAsync(int limit = 50)
     {
-        return await _context.PaperTrades
-            .Where(t => t.Status != "OPEN")
+        return await _context.TradeHistory
             .OrderByDescending(t => t.ClosedAt)
             .Take(limit)
             .ToListAsync();
@@ -332,19 +333,29 @@ public class PaperTradeService
     /// </summary>
     private async Task CreateTradeHistoryAsync(PaperTrade trade)
     {
+        var duration = trade.ClosedAt.HasValue 
+            ? (int)(trade.ClosedAt.Value - trade.OpenedAt).TotalMinutes 
+            : 0;
+
         var history = new TradeHistory
         {
-            PaperTradeId = trade.Id,
             Symbol = trade.Symbol,
             Direction = trade.Direction,
             EntryPrice = trade.EntryPrice,
             ExitPrice = trade.ExitPrice ?? 0,
-            ExitReason = trade.Status,
+            StopLoss = trade.StopLoss,
+            TakeProfit = trade.TakeProfit,
+            Quantity = trade.Quantity,
+            PositionSize = trade.PositionSize,
+            InvestAmount = trade.InvestAmount,
             PnL = trade.PnL ?? 0,
             PnLPercent = trade.PnLPercent ?? 0,
+            IsWinner = (trade.PnL ?? 0) > 0,
+            ExitReason = trade.Status,
+            Confidence = trade.Confidence,
+            DurationMinutes = duration,
             OpenedAt = trade.OpenedAt,
-            ClosedAt = trade.ClosedAt ?? _timeProvider.GetCurrentTime(),
-            IsWinner = (trade.PnL ?? 0) > 0
+            ClosedAt = trade.ClosedAt ?? _timeProvider.GetCurrentTime()
         };
 
         _context.TradeHistory.Add(history);
@@ -358,8 +369,7 @@ public class PaperTradeService
     /// </summary>
     public async Task<TradeStatistics> GetTradeStatisticsAsync()
     {
-        var closedTrades = await _context.PaperTrades
-            .Where(t => t.Status != "OPEN")
+        var closedTrades = await _context.TradeHistory
             .OrderBy(t => t.ClosedAt)
             .ToListAsync();
 
@@ -374,28 +384,28 @@ public class PaperTradeService
         }
 
         // Basic counts
-        stats.WinningTrades = closedTrades.Count(t => (t.PnL ?? 0) > 0);
-        stats.LosingTrades = closedTrades.Count(t => (t.PnL ?? 0) < 0);
+        stats.WinningTrades = closedTrades.Count(t => t.PnL > 0);
+        stats.LosingTrades = closedTrades.Count(t => t.PnL < 0);
         stats.WinRate = stats.TotalTrades > 0 
             ? (decimal)stats.WinningTrades / stats.TotalTrades * 100 
             : 0;
 
         // PnL calculations
-        stats.TotalPnL = closedTrades.Sum(t => t.PnL ?? 0);
+        stats.TotalPnL = closedTrades.Sum(t => t.PnL);
         
-        var winningTrades = closedTrades.Where(t => (t.PnL ?? 0) > 0).ToList();
-        var losingTrades = closedTrades.Where(t => (t.PnL ?? 0) < 0).ToList();
+        var winningTrades = closedTrades.Where(t => t.PnL > 0).ToList();
+        var losingTrades = closedTrades.Where(t => t.PnL < 0).ToList();
         
         stats.AverageWin = winningTrades.Count > 0 
-            ? winningTrades.Average(t => t.PnL ?? 0) 
+            ? winningTrades.Average(t => t.PnL) 
             : 0;
         stats.AverageLoss = losingTrades.Count > 0 
-            ? losingTrades.Average(t => t.PnL ?? 0) 
+            ? losingTrades.Average(t => t.PnL) 
             : 0;
 
         // Profit factor
-        var totalWins = winningTrades.Sum(t => t.PnL ?? 0);
-        var totalLosses = Math.Abs(losingTrades.Sum(t => t.PnL ?? 0));
+        var totalWins = winningTrades.Sum(t => t.PnL);
+        var totalLosses = Math.Abs(losingTrades.Sum(t => t.PnL));
         stats.ProfitFactor = totalLosses > 0 ? totalWins / totalLosses : 0;
 
         // Average R (Risk/Reward)
@@ -403,9 +413,9 @@ public class PaperTradeService
         foreach (var trade in closedTrades)
         {
             var risk = Math.Abs(trade.EntryPrice - trade.StopLoss) * trade.Quantity;
-            if (risk > 0 && trade.PnL.HasValue)
+            if (risk > 0)
             {
-                rValues.Add(trade.PnL.Value / risk);
+                rValues.Add(trade.PnL / risk);
             }
         }
         stats.AverageR = rValues.Count > 0 ? rValues.Average() : 0;
@@ -417,7 +427,7 @@ public class PaperTradeService
 
         foreach (var trade in closedTrades)
         {
-            runningPnL += trade.PnL ?? 0;
+            runningPnL += trade.PnL;
             if (runningPnL > peak)
             {
                 peak = runningPnL;
@@ -431,8 +441,8 @@ public class PaperTradeService
         stats.MaxDrawdown = maxDrawdown;
 
         // Best and worst trades
-        stats.BestTrade = closedTrades.OrderByDescending(t => t.PnL ?? 0).FirstOrDefault();
-        stats.WorstTrade = closedTrades.OrderBy(t => t.PnL ?? 0).FirstOrDefault();
+        stats.BestTrade = closedTrades.OrderByDescending(t => t.PnL).FirstOrDefault();
+        stats.WorstTrade = closedTrades.OrderBy(t => t.PnL).FirstOrDefault();
 
         return stats;
     }

@@ -215,7 +215,7 @@ export default function SimulationControlPanel() {
         setActionLoading(true);
         setActionError(null);
         try {
-            await setMode(isLive ? 'REPLAY' : 'LIVE');
+            await setMode(isLive ? 'MOCK' : 'LIVE');
         } catch (err) {
             setActionError(err instanceof Error ? err.message : 'Failed to change mode');
         } finally {

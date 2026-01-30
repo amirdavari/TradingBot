@@ -6,14 +6,13 @@ namespace API.Models;
 public enum MarketMode
 {
     /// <summary>
-    /// Live market data with real-time clock.
-    /// Uses DateTime.UtcNow as time source.
+    /// Live market data from Yahoo Finance (delayed).
     /// </summary>
     Live,
 
     /// <summary>
-    /// Replay mode using historical data with simulated clock.
-    /// Uses ReplayState.CurrentTime as time source.
+    /// Mock data mode using generated/simulated market data.
+    /// Historically called "Replay" - kept for database compatibility.
     /// </summary>
     Replay
 }

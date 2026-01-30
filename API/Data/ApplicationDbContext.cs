@@ -17,7 +17,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<WatchlistSymbol> WatchlistSymbols { get; set; }
     public DbSet<PaperTrade> PaperTrades { get; set; }
     public DbSet<TradeHistory> TradeHistory { get; set; }
-    public DbSet<ReplayStateEntity> ReplayStates { get; set; }
+    public DbSet<MarketModeEntity> MarketModes { get; set; }
     public DbSet<Account> Accounts { get; set; }
     public DbSet<RiskSettingsEntity> RiskSettings { get; set; }
     public DbSet<ScenarioConfigEntity> ScenarioConfigs { get; set; }
@@ -74,31 +74,27 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.ExitReason).IsRequired().HasMaxLength(20);
             entity.Property(e => e.EntryPrice).HasPrecision(18, 2);
             entity.Property(e => e.ExitPrice).HasPrecision(18, 2);
+            entity.Property(e => e.StopLoss).HasPrecision(18, 2);
+            entity.Property(e => e.TakeProfit).HasPrecision(18, 2);
+            entity.Property(e => e.PositionSize).HasPrecision(18, 4);
+            entity.Property(e => e.InvestAmount).HasPrecision(18, 2);
             entity.Property(e => e.PnL).HasPrecision(18, 2);
             entity.Property(e => e.PnLPercent).HasPrecision(18, 4);
             entity.Property(e => e.OpenedAt).IsRequired();
             entity.Property(e => e.ClosedAt).IsRequired();
-
-            // Foreign key relationship
-            entity.HasOne(e => e.PaperTrade)
-                .WithMany()
-                .HasForeignKey(e => e.PaperTradeId)
-                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasIndex(e => e.Symbol);
             entity.HasIndex(e => e.IsWinner);
             entity.HasIndex(e => e.ClosedAt);
         });
 
-        // Configure ReplayStateEntity (Singleton)
-        modelBuilder.Entity<ReplayStateEntity>(entity =>
+        // Configure MarketModeEntity (Singleton)
+        modelBuilder.Entity<MarketModeEntity>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedNever(); // Manually set to 1
-            entity.Property(e => e.ReplayStartTime).IsRequired();
-            entity.Property(e => e.Speed).IsRequired();
-            entity.Property(e => e.IsRunning).IsRequired();
             entity.Property(e => e.Mode).IsRequired();
+            entity.ToTable("MarketModes");
         });
 
         // Configure Account (Singleton)

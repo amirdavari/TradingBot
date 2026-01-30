@@ -46,11 +46,8 @@ export interface WatchlistSymbol {
 }
 
 export interface ReplayState {
-    mode: 'LIVE' | 'REPLAY';
+    mode: 'LIVE' | 'MOCK' | 'REPLAY'; // REPLAY for backwards compatibility
     currentTime: string;
-    replayStartTime: string;
-    speed: number;
-    isRunning: boolean;
 }
 
 export interface Account {

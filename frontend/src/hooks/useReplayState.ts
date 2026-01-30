@@ -35,9 +35,9 @@ export function useReplayState() {
     });
 
     /**
-     * Sets the market mode (LIVE or REPLAY/MOCK).
+     * Sets the market mode (LIVE or MOCK).
      */
-    const setMode = useCallback(async (mode: 'LIVE' | 'REPLAY') => {
+    const setMode = useCallback(async (mode: 'LIVE' | 'MOCK') => {
         try {
             const response = await replayApi.setMarketMode(mode);
             setState(response.state);

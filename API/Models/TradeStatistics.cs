@@ -15,6 +15,6 @@ public class TradeStatistics
     public decimal AverageR { get; set; } // Average Risk/Reward ratio
     public decimal MaxDrawdown { get; set; } // Maximum drawdown
     public decimal ProfitFactor { get; set; } // Total wins / Total losses
-    public PaperTrade? BestTrade { get; set; }
-    public PaperTrade? WorstTrade { get; set; }
+    public TradeHistory? BestTrade { get; set; }
+    public TradeHistory? WorstTrade { get; set; }
 }

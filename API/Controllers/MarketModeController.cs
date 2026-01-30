@@ -8,15 +8,16 @@ namespace API.Controllers;
 
 /// <summary>
 /// Controller for market mode management (Live/Mock).
+/// Route kept as "replay" for backwards compatibility.
 /// </summary>
 [ApiController]
-[Route("api/[controller]")]
-public class ReplayController : ControllerBase
+[Route("api/replay")]
+public class MarketModeController : ControllerBase
 {
     private readonly MarketTimeProvider _timeProvider;
     private readonly IHubContext<TradingHub> _hubContext;
 
-    public ReplayController(
+    public MarketModeController(
         MarketTimeProvider timeProvider,
         IHubContext<TradingHub> hubContext)
     {
@@ -28,21 +29,18 @@ public class ReplayController : ControllerBase
     /// Gets the current market mode state.
     /// </summary>
     [HttpGet("state")]
-    public ActionResult<ReplayStateResponse> GetState()
+    public ActionResult<MarketModeResponse> GetState()
     {
-        var state = _timeProvider.GetReplayState();
-        return Ok(new ReplayStateResponse
+        var state = _timeProvider.GetMarketState();
+        return Ok(new MarketModeResponse
         {
-            Mode = state.Mode == MarketMode.Live ? "LIVE" : "REPLAY",
-            CurrentTime = state.CurrentTime,
-            ReplayStartTime = state.ReplayStartTime,
-            Speed = state.Speed,
-            IsRunning = state.IsRunning
+            Mode = state.Mode == MarketMode.Live ? "LIVE" : "MOCK",
+            CurrentTime = state.CurrentTime
         });
     }
 
     /// <summary>
-    /// Sets the market mode (Live or Mock/Replay).
+    /// Sets the market mode (Live or Mock).
     /// </summary>
     [HttpPost("mode")]
     public async Task<IActionResult> SetMode([FromBody] SetModeRequest request)
@@ -50,13 +48,14 @@ public class ReplayController : ControllerBase
         var mode = request.Mode.ToUpper() switch
         {
             "LIVE" => MarketMode.Live,
-            "REPLAY" => MarketMode.Replay,
+            "MOCK" => MarketMode.Replay,
+            "REPLAY" => MarketMode.Replay, // Keep for backwards compatibility
             _ => (MarketMode?)null
         };
 
         if (mode == null)
         {
-            return BadRequest(new { error = "Invalid mode. Must be 'LIVE' or 'REPLAY'" });
+            return BadRequest(new { error = "Invalid mode. Must be 'LIVE' or 'MOCK'" });
         }
 
         _timeProvider.SetMode(mode.Value);
@@ -74,16 +73,13 @@ public class ReplayController : ControllerBase
         return Ok(new { message = $"Mode set to {request.Mode}", state = stateResponse });
     }
 
-    private ReplayStateResponse GetStateResponse()
+    private MarketModeResponse GetStateResponse()
     {
-        var state = _timeProvider.GetReplayState();
-        return new ReplayStateResponse
+        var state = _timeProvider.GetMarketState();
+        return new MarketModeResponse
         {
-            Mode = state.Mode == MarketMode.Live ? "LIVE" : "REPLAY",
-            CurrentTime = state.CurrentTime,
-            ReplayStartTime = state.ReplayStartTime,
-            Speed = state.Speed,
-            IsRunning = state.IsRunning
+            Mode = state.Mode == MarketMode.Live ? "LIVE" : "MOCK",
+            CurrentTime = state.CurrentTime
         };
     }
 }

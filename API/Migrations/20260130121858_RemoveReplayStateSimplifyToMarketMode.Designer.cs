@@ -3,6 +3,7 @@ using System;
 using API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260130121858_RemoveReplayStateSimplifyToMarketMode")]
+    partial class RemoveReplayStateSimplifyToMarketMode
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.1");
@@ -300,15 +303,14 @@ namespace API.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
-                    b.Property<decimal>("InvestAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("TEXT");
-
                     b.Property<bool>("IsWinner")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("OpenedAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("PaperTradeId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<decimal>("PnL")
                         .HasPrecision(18, 2)
@@ -318,24 +320,12 @@ namespace API.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("TEXT");
 
-                    b.Property<decimal>("PositionSize")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("TEXT");
-
                     b.Property<int>("Quantity")
                         .HasColumnType("INTEGER");
-
-                    b.Property<decimal>("StopLoss")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("TEXT");
 
                     b.Property<string>("Symbol")
                         .IsRequired()
                         .HasMaxLength(10)
-                        .HasColumnType("TEXT");
-
-                    b.Property<decimal>("TakeProfit")
-                        .HasPrecision(18, 2)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -343,6 +333,8 @@ namespace API.Migrations
                     b.HasIndex("ClosedAt");
 
                     b.HasIndex("IsWinner");
+
+                    b.HasIndex("PaperTradeId");
 
                     b.HasIndex("Symbol");
 
@@ -738,6 +730,17 @@ namespace API.Migrations
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Symbol = "SMHN.DE"
                         });
+                });
+
+            modelBuilder.Entity("API.Models.TradeHistory", b =>
+                {
+                    b.HasOne("API.Models.PaperTrade", "PaperTrade")
+                        .WithMany()
+                        .HasForeignKey("PaperTradeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("PaperTrade");
                 });
 #pragma warning restore 612, 618
         }

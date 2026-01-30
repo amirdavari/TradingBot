@@ -2,7 +2,7 @@ namespace API.Models;
 
 /// <summary>
 /// Represents a historical trade record for analytics and reporting.
-/// This is a simplified view of closed trades optimized for statistics.
+/// Contains all trade data since closed trades are removed from PaperTrades.
 /// </summary>
 public class TradeHistory
 {
@@ -10,11 +10,6 @@ public class TradeHistory
     /// Unique identifier for the history record.
     /// </summary>
     public int Id { get; set; }
-
-    /// <summary>
-    /// Reference to the original PaperTrade ID.
-    /// </summary>
-    public int PaperTradeId { get; set; }
 
     /// <summary>
     /// Stock symbol (e.g., AAPL, MSFT).
@@ -37,9 +32,29 @@ public class TradeHistory
     public decimal ExitPrice { get; set; }
 
     /// <summary>
+    /// Stop-Loss price level at entry.
+    /// </summary>
+    public decimal StopLoss { get; set; }
+
+    /// <summary>
+    /// Take-Profit price level at entry.
+    /// </summary>
+    public decimal TakeProfit { get; set; }
+
+    /// <summary>
     /// Number of shares/units traded.
     /// </summary>
     public int Quantity { get; set; }
+
+    /// <summary>
+    /// Position size as decimal (supports fractional shares).
+    /// </summary>
+    public decimal PositionSize { get; set; }
+
+    /// <summary>
+    /// Total investment amount (PositionSize * EntryPrice).
+    /// </summary>
+    public decimal InvestAmount { get; set; }
 
     /// <summary>
     /// Profit or Loss in currency units.
@@ -80,9 +95,4 @@ public class TradeHistory
     /// Timestamp when the trade was closed.
     /// </summary>
     public DateTime ClosedAt { get; set; }
-
-    /// <summary>
-    /// Navigation property to the original PaperTrade.
-    /// </summary>
-    public PaperTrade? PaperTrade { get; set; }
 }

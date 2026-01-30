@@ -1,20 +1,17 @@
 namespace API.Services;
 
 /// <summary>
-/// Provides abstracted time source that works in both Live and Replay modes.
-/// This ensures business logic doesn't depend on DateTime.Now/UtcNow directly.
+/// Provides abstracted time source and market mode state.
 /// </summary>
 public interface IMarketTimeProvider
 {
     /// <summary>
-    /// Gets the current market time.
-    /// In Live mode: returns DateTime.UtcNow
-    /// In Replay mode: returns ReplayState.CurrentTime
+    /// Gets the current market time (always UTC now).
     /// </summary>
     DateTime GetCurrentTime();
 
     /// <summary>
-    /// Gets the current market mode.
+    /// Gets the current market mode (Live or Mock).
     /// </summary>
     Models.MarketMode GetMode();
 }

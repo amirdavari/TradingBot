@@ -9,9 +9,9 @@ export async function getReplayState(): Promise<ReplayState> {
 }
 
 /**
- * Sets the market mode (LIVE or REPLAY/MOCK).
+ * Sets the market mode (LIVE or MOCK).
  */
-export async function setMarketMode(mode: 'LIVE' | 'REPLAY'): Promise<{ message: string; state: ReplayState }> {
+export async function setMarketMode(mode: 'LIVE' | 'MOCK' | 'REPLAY'): Promise<{ message: string; state: ReplayState }> {
     return fetchWithConfig(API_CONFIG.endpoints.replay.mode, {
         method: 'POST',
         body: JSON.stringify({ mode }),
