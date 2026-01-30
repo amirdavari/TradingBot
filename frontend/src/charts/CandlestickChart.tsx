@@ -77,21 +77,32 @@ export default function CandlestickChart({ candles, signal }: CandlestickChartPr
         candlestickSeriesRef.current = candlestickSeries;
         volumeSeriesRef.current = volumeSeries;
 
-        // Handle resize
+        // Handle resize with ResizeObserver for container changes
         const handleResize = () => {
             if (chartContainerRef.current && chartRef.current && !isDisposedRef.current) {
-                chartRef.current.applyOptions({
-                    width: chartContainerRef.current.clientWidth,
-                    height: chartContainerRef.current.clientHeight,
-                });
+                const { clientWidth, clientHeight } = chartContainerRef.current;
+                if (clientWidth > 0 && clientHeight > 0) {
+                    chartRef.current.applyOptions({
+                        width: clientWidth,
+                        height: clientHeight,
+                    });
+                }
             }
         };
 
+        // Use ResizeObserver for container size changes
+        const resizeObserver = new ResizeObserver(handleResize);
+        resizeObserver.observe(chartContainerRef.current);
+
         window.addEventListener('resize', handleResize);
+        
+        // Initial resize after a short delay to ensure container is rendered
+        setTimeout(handleResize, 100);
 
         // Cleanup
         return () => {
             isDisposedRef.current = true;
+            resizeObserver.disconnect();
             window.removeEventListener('resize', handleResize);
             if (chartRef.current) {
                 chartRef.current.remove();
@@ -222,7 +233,8 @@ export default function CandlestickChart({ candles, signal }: CandlestickChartPr
             sx={{
                 width: '100%',
                 height: '100%',
-                minHeight: 400,
+                minHeight: 350,
+                position: 'relative',
             }}
         />
     );

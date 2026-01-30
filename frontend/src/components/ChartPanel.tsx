@@ -68,17 +68,23 @@ export default function ChartPanel({
             </Box>
 
             {/* Chart Area */}
-            <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, overflow: 'hidden' }}>
+            <Box sx={{ flex: '1 1 auto', display: 'flex', minHeight: 350, position: 'relative' }}>
                 {loading ? (
-                    <LoadingSpinner />
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                        <LoadingSpinner />
+                    </Box>
                 ) : error ? (
-                    <ErrorAlert error={error} />
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                        <ErrorAlert error={error} />
+                    </Box>
                 ) : candles.length > 0 ? (
                     <CandlestickChart candles={candles} signal={signal} />
                 ) : (
-                    <Typography variant="h6" color="text.secondary">
-                        No data available
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                        <Typography variant="h6" color="text.secondary">
+                            No data available
+                        </Typography>
+                    </Box>
                 )}
             </Box>
             <NewsPanel news={news} loading={newsLoading} symbol={symbol} />
